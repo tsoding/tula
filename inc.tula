@@ -1,0 +1,2 @@
+Inc 0 1 -> Halt
+Inc 1 0 -> Inc

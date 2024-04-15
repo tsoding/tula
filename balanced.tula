@@ -1,0 +1,32 @@
+Entry & & -> Pick
+Pick  ( & -> Inc1
+Pick  ) & -> Dec1
+Pick  & & -> Verify
+
+Verify 0 0 -> Balanced
+Verify 1 1 -> Unbalanced
+
+Inc1 ( ( -> Inc1
+Inc1 ) ) -> Inc1
+Inc1 & & -> Inc2
+
+Inc2 0 1 <- Reset_Bits
+Inc2 1 1 -> Inc2
+
+Dec1 ( ( -> Dec1
+Dec1 ) ) -> Dec1
+Dec1 & & -> Dec2
+
+Dec2 1 1 -> Dec2
+Dec2 0 0 <- Dec3
+Dec3 1 0 <- Reset_Bits
+Dec3 & & <- Unbalanced
+
+Reset_Bits 0 0 <- Reset_Bits
+Reset_Bits 1 1 <- Reset_Bits
+Reset_Bits & & <- Reset_Parens
+
+Reset_Parens ( ( <- Reset_Parens
+Reset_Parens ) ) <- Reset_Parens
+
+Reset_Parens & & -> Pick
