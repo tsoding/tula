@@ -1,2 +1,2 @@
-Inc 0 1 -> Halt
-Inc 1 0 -> Inc
+case Inc 0 1 -> Halt
+case Inc 1 0 -> Inc

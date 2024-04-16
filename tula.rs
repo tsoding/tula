@@ -3,6 +3,7 @@ use std::result;
 use std::fmt::{self, Write};
 use std::env;
 use std::process::ExitCode;
+use std::collections::HashMap;
 
 type Result<T> = result::Result<T, ()>;
 
@@ -135,6 +136,83 @@ struct Case<'nsa> {
 }
 
 #[derive(Debug)]
+enum Statement<'nsa> {
+    Case(Case<'nsa>),
+    For {
+        var: Symbol<'nsa>,
+        set: Symbol<'nsa>,
+        body: Box<Statement<'nsa>>,
+    }
+}
+
+impl<'nsa> Statement<'nsa> {
+    fn entry_state(&self, program: &Program<'nsa>) -> Result<Option<Symbol<'nsa>>> {
+        match self {
+            Statement::Case(case) => Ok(Some(case.state)),
+            Statement::For{var, set, body} => {
+                if let Some(symbols) = program.sets.get(set.name) {
+                    if let Some(symbol) = symbols.first() {
+                        body.substitude(*var, *symbol).entry_state(program)
+                    } else {
+                        Ok(None)
+                    }
+                } else {
+                    eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
+                    Err(())
+                }
+            }
+        }
+    }
+
+    fn substitude(&self, var: Symbol<'nsa>, symbol: Symbol<'nsa>) -> Statement<'nsa> {
+        match self {
+            &Statement::Case(Case{state, read, write, step, next}) => {
+                let state = if state.name == var.name {symbol} else {state};
+                let read  = if read.name  == var.name {symbol} else {read};
+                // TODO: Implement support for substituting step.
+                // We need to update the parser to enable that.
+                // We also need to do some runtime checks to ensure that only things from the Arrow set are put in the step
+                // let Arrow { -> <- }
+                let write = if write.name == var.name {symbol} else {write};
+                let next  = if next.name  == var.name {symbol} else {next};
+                Statement::Case(Case{state, read, write, step, next})
+            }
+            Statement::For{var, set, body} => {
+                let var = *var;
+                let set = if set.name == var.name {symbol} else {*set};
+                let body = Box::new(body.substitude(var, set));
+                Statement::For{var, set, body}
+            }
+        }
+    }
+
+    fn match_state(&self, program: &Program<'nsa>, state: Symbol<'nsa>, read: Symbol<'nsa>) -> Result<Option<(Symbol<'nsa>, Symbol<'nsa>, Symbol<'nsa>)>> {
+        match self {
+            Statement::Case(case) => {
+                if case.state.name == state.name && case.read.name == read.name {
+                    Ok(Some((case.write, case.step, case.next)))
+                } else {
+                    Ok(None)
+                }
+            }
+            Statement::For{var, set, body} => {
+                if let Some(symbols) = program.sets.get(set.name) {
+                    for symbol in symbols {
+                        if let Some(triple) = body.substitude(*var, *symbol).match_state(program, state, read)? {
+                            return Ok(Some(triple));
+                        }
+                    }
+                    Ok(None)
+                } else {
+                    eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
+                    Err(())
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
 struct Machine<'nsa> {
     state: Symbol<'nsa>,
     tape: Vec<Symbol<'nsa>>,
@@ -143,15 +221,15 @@ struct Machine<'nsa> {
     halt: bool,
 }
 
-impl<'a> Machine<'a> {
-    fn next(&mut self, cases: &[Case<'a>]) -> Result<()> {
-        for case in cases {
-            if case.state.name == self.state.name && case.read.name == self.tape[self.head].name {
-                self.tape[self.head] = case.write;
-                match case.step.name {
+impl<'nsa> Machine<'nsa> {
+    fn next(&mut self, program: &Program<'nsa>) -> Result<()> {
+        for statement in program.statements.iter() {
+            if let Some((write, step, next)) = statement.match_state(program, self.state, self.tape[self.head])? {
+                self.tape[self.head] = write;
+                match step.name {
                     "<-" => {
                         if self.head == 0 {
-                            eprintln!("{loc}: ERROR: tape underflow", loc = case.step.loc);
+                            eprintln!("{loc}: ERROR: tape underflow", loc = step.loc);
                             return Err(());
                         }
                         self.head -= 1;
@@ -166,7 +244,7 @@ impl<'a> Machine<'a> {
                         unreachable!("Parser didn't parse the arrow correctly");
                     }
                 }
-                self.state = case.next;
+                self.state = next;
                 self.halt = false;
                 break;
             }
@@ -202,14 +280,53 @@ fn parse_symbol<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Symbol<'nsa>> {
     }
 }
 
-fn parse_step<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Symbol<'nsa>> {
+fn expect_symbols<'nsa>(lexer: &mut Lexer<'nsa>, expected_names: &[&str]) -> Result<Symbol<'nsa>> {
     let symbol = parse_symbol(lexer)?;
-    match symbol.name {
-        "->" | "<-" => Ok(symbol),
-        name => {
-            eprintln!("{loc}: ERROR: expected -> or <- but got {name}", loc = symbol.loc);
-            Err(())
+    for name in expected_names.iter() {
+        if &symbol.name == name {
+            return Ok(symbol);
         }
+    }
+    let mut buffer = String::new();
+    for (i, name) in expected_names.iter().enumerate() {
+        if i == 0 {
+            let _ = write!(&mut buffer, "{name}");
+        } if i + 1 == expected_names.len() {
+            let _ = write!(&mut buffer, ", or {name}");
+        } else {
+            let _ = write!(&mut buffer, ", {name}");
+        }
+    }
+    eprintln!("{loc}: ERROR: expected {buffer} got {name}", loc = symbol.loc, name = symbol.name);
+    Err(())
+}
+
+fn parse_set<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Symbol<'nsa>>> {
+    let _ = expect_symbols(lexer, &["{"])?;
+    let mut set = vec![];
+    while let Some(symbol) = lexer.next_symbol() {
+        if symbol.name == "}" {
+            break;
+        }
+        set.push(symbol);
+    }
+    Ok(set)
+}
+
+#[derive(Default)]
+struct Program<'nsa> {
+    statements: Vec<Statement<'nsa>>,
+    sets: HashMap<&'nsa str, Vec<Symbol<'nsa>>>,
+}
+
+impl<'nsa> Program<'nsa> {
+    fn entry_state(&self) -> Result<Option<Symbol<'nsa>>> {
+        for statement in self.statements.iter() {
+            if let Some(state) = statement.entry_state(self)? {
+                return Ok(Some(state))
+            }
+        }
+        Ok(None)
     }
 }
 
@@ -217,17 +334,50 @@ fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Case<'nsa>> {
     let state = parse_symbol(lexer)?;
     let read = parse_symbol(lexer)?;
     let write = parse_symbol(lexer)?;
-    let step = parse_step(lexer)?;
+    let step = expect_symbols(lexer, &["->", "<-"])?;
     let next = parse_symbol(lexer)?;
     Ok(Case{state, read, write, step, next})
 }
 
-fn parse_cases<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Case<'nsa>>> {
-    let mut cases = vec![];
-    while lexer.peek_symbol().is_some() {
-        cases.push(parse_case(lexer)?);
+fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
+    let key = expect_symbols(lexer, &["case", "for"])?;
+    match key.name {
+        "case" => Ok(Statement::Case(parse_case(lexer)?)),
+        "for" => {
+            let var = parse_symbol(lexer)?;
+            let _ = expect_symbols(lexer, &["in"])?;
+            let set = parse_symbol(lexer)?;
+            let body = Box::new(parse_statement(lexer)?);
+            Ok(Statement::For{var, set, body})
+        }
+        _ => unreachable!()
     }
-    Ok(cases)
+}
+
+fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
+    let mut program = Program::default();
+    while let Some(key) = lexer.peek_symbol() {
+        match key.name {
+            "case" | "for" => {
+                program.statements.push(parse_statement(lexer)?);
+            }
+            "let" => {
+                lexer.next_symbol();
+                let Symbol{name, loc} = parse_symbol(lexer)?;
+                if program.sets.contains_key(name) {
+                    eprintln!("{loc}: ERROR: redefinition of set {name}");
+                    return Err(())
+                }
+                let set = parse_set(lexer)?;
+                program.sets.insert(name, set);
+            }
+            _ => {
+                eprintln!("{loc}: ERROR: unknown keyword {name}", loc = key.loc, name = key.name);
+                return Err(())
+            }
+        }
+    }
+    Ok(program)
 }
 
 fn parse_tape<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Symbol<'nsa>>> {
@@ -238,39 +388,39 @@ fn parse_tape<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Symbol<'nsa>>> {
     Ok(symbols)
 }
 
-fn usage(program: &str) {
-    eprintln!("Usage: {program} <input.tula> <input.tape>");
+fn usage(program_name: &str) {
+    eprintln!("Usage: {program_name} <input.tula> <input.tape>");
 }
+
 
 fn start() -> Result<()> {
     let mut args = env::args();
-    let program = args.next().expect("Program name is alway present");
+    let program_name = args.next().expect("Program name is alway present");
 
     let tula_path;
     if let Some(path) = args.next() {
         tula_path = path;
     } else {
-        usage(&program);
+        usage(&program_name);
         eprintln!("ERROR: no input.tula is provided");
         return Err(());
     }
     let tula_source = fs::read_to_string(&tula_path).map_err(|err| {
         eprintln!("ERROR: could not read file {tula_path}: {err}");
     })?;
-    let cases = parse_cases(&mut Lexer::new(&tula_source, &tula_path))?;
-    let state;
-    if let Some(case) = cases.first() {
-        state = case.state;
+    let program = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
+    let state = if let Some(state) = program.entry_state()? {
+        state
     } else {
         eprintln!("ERROR: The tule file must have at least one case");
         return Err(());
-    }
+    };
 
     let tape_path;
     if let Some(path) = args.next() {
         tape_path = path;
     } else {
-        usage(&program);
+        usage(&program_name);
         eprintln!("ERROR: no input.tape is provided");
         return Err(());
     }
@@ -298,7 +448,7 @@ fn start() -> Result<()> {
     while !machine.halt {
         machine.print();
         machine.halt = true;
-        machine.next(&cases)?;
+        machine.next(&program)?;
     }
     Ok(())
 }

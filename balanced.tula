@@ -1,32 +1,30 @@
-Entry & & -> Pick
-Pick  ( & -> Inc1
-Pick  ) & -> Dec1
-Pick  & & -> Verify
+let Paren { '(' ')' }
+let Bits  { 0 1 }
 
-Verify 0 0 -> Balanced
-Verify 1 1 -> Unbalanced
+case Entry & & -> Pick
+case Pick  '(' & -> Inc1
+case Pick  ')' & -> Dec1
+case Pick  & & -> Verify
 
-Inc1 ( ( -> Inc1
-Inc1 ) ) -> Inc1
-Inc1 & & -> Inc2
+case Verify 0 0 -> Balanced
+case Verify 1 1 -> Unbalanced
 
-Inc2 0 1 <- Reset_Bits
-Inc2 1 1 -> Inc2
+for p in Paren case Inc1 p p -> Inc1
+case Inc1 & & -> Inc2
 
-Dec1 ( ( -> Dec1
-Dec1 ) ) -> Dec1
-Dec1 & & -> Dec2
+case Inc2 0 1 <- Reset_Bits
+case Inc2 1 1 -> Inc2
 
-Dec2 1 1 -> Dec2
-Dec2 0 0 <- Dec3
-Dec3 1 0 <- Reset_Bits
-Dec3 & & <- Unbalanced
+for p in Paren case Dec1 p p -> Dec1
+case Dec1 & & -> Dec2
 
-Reset_Bits 0 0 <- Reset_Bits
-Reset_Bits 1 1 <- Reset_Bits
-Reset_Bits & & <- Reset_Parens
+case Dec2 1 1 -> Dec2
+case Dec2 0 0 <- Dec3
+case Dec3 1 0 <- Reset_Bits
+case Dec3 & & <- Unbalanced
 
-Reset_Parens ( ( <- Reset_Parens
-Reset_Parens ) ) <- Reset_Parens
+for b in Bits case Reset_Bits b b <- Reset_Bits
+case Reset_Bits & & <- Reset_Parens
 
-Reset_Parens & & -> Pick
+for p in Paren case Reset_Parens p p <- Reset_Parens
+case Reset_Parens & & -> Pick
