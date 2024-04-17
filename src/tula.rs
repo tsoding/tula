@@ -156,38 +156,8 @@ impl<'nsa> Machine<'nsa> {
     }
 }
 
-fn parse_symbol<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Symbol<'nsa>> {
-    if let Some(symbol) = lexer.next_symbol() {
-        Ok(symbol)
-    } else {
-        eprintln!("{loc}: ERROR: expected symbol but reached the end of the input", loc = lexer.loc());
-        Err(())
-    }
-}
-
-fn expect_symbols<'nsa>(lexer: &mut Lexer<'nsa>, expected_names: &[&str]) -> Result<Symbol<'nsa>> {
-    let symbol = parse_symbol(lexer)?;
-    for name in expected_names.iter() {
-        if &symbol.name == name {
-            return Ok(symbol);
-        }
-    }
-    let mut buffer = String::new();
-    for (i, name) in expected_names.iter().enumerate() {
-        if i == 0 {
-            let _ = write!(&mut buffer, "{name}");
-        } if i + 1 == expected_names.len() {
-            let _ = write!(&mut buffer, ", or {name}");
-        } else {
-            let _ = write!(&mut buffer, ", {name}");
-        }
-    }
-    eprintln!("{loc}: ERROR: expected {buffer} got {name}", loc = symbol.loc, name = symbol.name);
-    Err(())
-}
-
 fn parse_set<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Symbol<'nsa>>> {
-    let _ = expect_symbols(lexer, &["{"])?;
+    let _ = lexer.expect_symbols(&["{"])?;
     let mut set = vec![];
     while let Some(symbol) = lexer.next_symbol() {
         if symbol.name == "}" {
@@ -216,22 +186,22 @@ impl<'nsa> Program<'nsa> {
 }
 
 fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Case<'nsa>> {
-    let state = parse_symbol(lexer)?;
-    let read = parse_symbol(lexer)?;
-    let write = parse_symbol(lexer)?;
-    let step = expect_symbols(lexer, &["->", "<-"])?;
-    let next = parse_symbol(lexer)?;
+    let state = lexer.parse_symbol()?;
+    let read  = lexer.parse_symbol()?;
+    let write = lexer.parse_symbol()?;
+    let step  = lexer.expect_symbols(&["->", "<-"])?;
+    let next  = lexer.parse_symbol()?;
     Ok(Case{state, read, write, step, next})
 }
 
 fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
-    let key = expect_symbols(lexer, &["case", "for"])?;
+    let key = lexer.expect_symbols(&["case", "for"])?;
     match key.name {
         "case" => Ok(Statement::Case(parse_case(lexer)?)),
         "for" => {
-            let var = parse_symbol(lexer)?;
-            let _ = expect_symbols(lexer, &["in"])?;
-            let set = parse_symbol(lexer)?;
+            let var = lexer.parse_symbol()?;
+            let _ = lexer.expect_symbols(&["in"])?;
+            let set = lexer.parse_symbol()?;
             let body = Box::new(parse_statement(lexer)?);
             Ok(Statement::For{var, set, body})
         }
@@ -248,7 +218,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
             }
             "let" => {
                 lexer.next_symbol();
-                let Symbol{name, loc} = parse_symbol(lexer)?;
+                let Symbol{name, loc} = lexer.parse_symbol()?;
                 if program.sets.contains_key(name) {
                     eprintln!("{loc}: ERROR: redefinition of set {name}");
                     return Err(())
@@ -268,7 +238,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
 fn parse_tape<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Symbol<'nsa>>> {
     let mut symbols = vec![];
     while lexer.peek_symbol().is_some() {
-        symbols.push(parse_symbol(lexer)?);
+        symbols.push(lexer.parse_symbol()?);
     }
     Ok(symbols)
 }

@@ -1,8 +1,11 @@
+mod sexpr;
 mod lexer;
 
-use std::{fs, env, result};
-use lexer::*;
+use std::{env, fs, result};
 use std::process::ExitCode;
+
+use sexpr::*;
+use lexer::*;
 
 type Result<T> = result::Result<T, ()>;
 
@@ -10,26 +13,22 @@ fn start() -> Result<()> {
     let mut args = env::args();
     let program_name = args.next().expect("Program name is always provided");
 
-    let input_path;
+    let source_path;
     if let Some(arg) = args.next() {
-        input_path = arg;
+        source_path = arg;
     } else {
         eprintln!("Usage: {program_name} <input>");
         eprintln!("ERROR: no input is provided");
         return Err(());
     }
 
-    let input_source = fs::read_to_string(&input_path).map_err(|err| {
-        eprintln!("ERROR: could not read file {input_path}: {err}");
+    let source = fs::read_to_string(&source_path).map_err(|err| {
+        eprintln!("ERROR: could not read file {source_path}: {err}");
     })?;
 
-    // for x in SPECIAL {
-    //     println!("{x}: {}", input_source.starts_with(*x));
-    // }
-
-    for Symbol{loc, name} in Lexer::new(&input_source, &input_path) {
-        println!("{loc}: {name}");
-    }
+    let mut lexer = Lexer::new(&source, &source_path);
+    let sexpr = Sexpr::parse(&mut lexer)?;
+    sexpr.dump(0);
 
     Ok(())
 }

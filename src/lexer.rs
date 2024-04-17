@@ -1,5 +1,9 @@
 use std::fmt;
 use std::iter::Iterator;
+use std::fmt::Write;
+use super::Result;
+
+pub const SPECIAL: &[char] = &['(', ')', '{', '}', ':'];
 
 #[derive(Debug, Clone, Copy)]
 pub struct Loc<'nsa> {
@@ -58,6 +62,23 @@ impl<'nsa> Lexer<'nsa> {
         }
     }
 
+    fn strip_char_prefix(&mut self, prefix: char) -> Option<&'nsa str> {
+        if self.source.starts_with(prefix) {
+            let mut char_indices = self.source.char_indices();
+            let _ = char_indices.next();
+            let end = char_indices
+                .next()
+                .map(|(i, _)| i)
+                .unwrap_or(self.source.len());
+            self.advance_loc(prefix);
+            let result = &self.source[..end];
+            self.source = &self.source[end..];
+            Some(result)
+        } else {
+            None
+        }
+    }
+
     fn strip_prefix(&mut self, prefix: &str) -> bool {
         if let Some(source) = self.source.strip_prefix(prefix) {
             for x in prefix.chars() {
@@ -104,14 +125,13 @@ impl<'nsa> Lexer<'nsa> {
 
         let loc = self.loc();
 
-        let special = &["(", ")", "{", "}", ":"];
-        for name in special {
-            if self.strip_prefix(name) {
+        for name in SPECIAL {
+            if let Some(name) = self.strip_char_prefix(*name) {
                 return Some(Symbol{ name, loc });
             }
         }
 
-        let name = self.strip_while(|x| !x.is_whitespace());
+        let name = self.strip_while(|x| !x.is_whitespace() && !SPECIAL.contains(x));
         Some(Symbol { name, loc })
     }
 
@@ -124,6 +144,36 @@ impl<'nsa> Lexer<'nsa> {
             self.peek = self.chop_symbol();
         }
         self.peek
+    }
+
+    pub fn parse_symbol(&mut self) -> Result<Symbol<'nsa>> {
+        if let Some(symbol) = self.next_symbol() {
+            Ok(symbol)
+        } else {
+            eprintln!("{loc}: ERROR: expected symbol but reached the end of the input", loc = self.loc());
+            Err(())
+        }
+    }
+
+    pub fn expect_symbols(&mut self, expected_names: &[&str]) -> Result<Symbol<'nsa>> {
+        let symbol = self.parse_symbol()?;
+        for name in expected_names.iter() {
+            if &symbol.name == name {
+                return Ok(symbol);
+            }
+        }
+        let mut buffer = String::new();
+        for (i, name) in expected_names.iter().enumerate() {
+            if i == 0 {
+                let _ = write!(&mut buffer, "{name}");
+            } if i + 1 == expected_names.len() {
+                let _ = write!(&mut buffer, ", or {name}");
+            } else {
+                let _ = write!(&mut buffer, ", {name}");
+            }
+        }
+        eprintln!("{loc}: ERROR: expected {buffer} got {name}", loc = symbol.loc, name = symbol.name);
+        Err(())
     }
 }
 
