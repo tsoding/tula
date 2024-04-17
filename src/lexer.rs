@@ -1,4 +1,5 @@
 use std::fmt;
+use std::iter::Iterator;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Loc<'nsa> {
@@ -123,5 +124,12 @@ impl<'nsa> Lexer<'nsa> {
             self.peek = self.chop_symbol();
         }
         self.peek
+    }
+}
+
+impl<'nsa> Iterator for Lexer<'nsa> {
+    type Item = Symbol<'nsa>;
+    fn next(&mut self) -> Option<Symbol<'nsa>> {
+        self.next_symbol()
     }
 }
