@@ -75,7 +75,14 @@ impl<'nsa> Lexer<'nsa> {
     }
 
     fn chop_symbol(&mut self) -> Option<Symbol<'nsa>> {
-        let _ = self.strip_while(|x| x.is_whitespace());
+        'strip_whitespaces_and_comments: loop {
+            let _ = self.strip_while(|x| x.is_whitespace());
+            if self.strip_prefix("//") {
+                let _ = self.strip_while(|x| *x != '\n');
+            } else {
+                break 'strip_whitespaces_and_comments
+            }
+        }
 
         if self.source.is_empty() {
             return None

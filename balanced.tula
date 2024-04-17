@@ -1,3 +1,4 @@
+// -*- mode: js -*-
 let Paren { '(' ')' }
 let Bits  { 0 1 }
 
