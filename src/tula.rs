@@ -1,137 +1,15 @@
+mod lexer;
+
 use std::fs;
 use std::result;
-use std::fmt::{self, Write};
+use std::fmt::Write;
 use std::env;
 use std::process::ExitCode;
 use std::collections::HashMap;
 
+use lexer::*;
+
 type Result<T> = result::Result<T, ()>;
-
-struct Lexer<'nsa> {
-    source: &'nsa str,
-    file_path: &'nsa str,
-    pos: usize,
-    bol: usize,
-    row: usize,
-    peek: Option<Symbol<'nsa>>,
-}
-
-impl<'nsa> Lexer<'nsa> {
-    fn new(source: &'nsa str, file_path: &'nsa str) -> Self {
-        Self {
-            source,
-            file_path,
-            pos: 0,
-            bol: 0,
-            row: 0,
-            peek: None,
-        }
-    }
-
-    fn loc(&self) -> Loc<'nsa> {
-        Loc {
-            file_path: self.file_path,
-            row: self.row + 1,
-            col: self.pos - self.bol + 1,
-        }
-    }
-
-    fn advance_loc(&mut self, skipped_char: char) {
-        self.pos += 1;
-        if skipped_char == '\n' {
-            self.bol = self.pos;
-            self.row += 1;
-        }
-    }
-
-    fn strip_prefix(&mut self, prefix: &str) -> bool {
-        if let Some(source) = self.source.strip_prefix(prefix) {
-            for x in prefix.chars() {
-                self.advance_loc(x);
-            }
-            self.source = source;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn strip_while<P>(&mut self, mut skip: P) -> &'nsa str where P: FnMut(&char) -> bool {
-        let end = self.source
-            .char_indices()
-            .find(|(_, x)| {
-                if skip(x) {
-                    self.advance_loc(*x);
-                    false
-                } else {
-                    true
-                }
-            })
-            .map(|(i, _)| i)
-            .unwrap_or(self.source.len());
-        let prefix = &self.source[..end];
-        self.source = &self.source[end..];
-        prefix
-    }
-
-    fn chop_symbol(&mut self) -> Option<Symbol<'nsa>> {
-        'strip_whitespaces_and_comments: loop {
-            let _ = self.strip_while(|x| x.is_whitespace());
-            if self.strip_prefix("//") {
-                let _ = self.strip_while(|x| *x != '\n');
-            } else {
-                break 'strip_whitespaces_and_comments
-            }
-        }
-
-        if self.source.is_empty() {
-            return None
-        }
-
-        let loc = self.loc();
-
-        let special = &["(", ")", "{", "}", ":"];
-        for name in special {
-            if self.strip_prefix(name) {
-                return Some(Symbol{ name, loc });
-            }
-        }
-
-        let name = self.strip_while(|x| !x.is_whitespace());
-        Some(Symbol { name, loc })
-    }
-
-    fn next_symbol(&mut self) -> Option<Symbol<'nsa>> {
-        self.peek.take().or_else(|| self.chop_symbol())
-    }
-
-    fn peek_symbol(&mut self) -> Option<Symbol<'nsa>> {
-        if self.peek.is_none() {
-            self.peek = self.chop_symbol();
-        }
-        self.peek
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Loc<'nsa> {
-    file_path: &'nsa str,
-    row: usize,
-    col: usize,
-}
-
-impl<'nsa> fmt::Display for Loc<'nsa> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Loc{file_path, row, col} = self;
-        write!(f, "{file_path}:{row}:{col}")
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Symbol<'nsa> {
-    name: &'nsa str,
-    loc: Loc<'nsa>,
-}
 
 #[derive(Debug)]
 struct Case<'nsa> {
@@ -398,7 +276,6 @@ fn parse_tape<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Symbol<'nsa>>> {
 fn usage(program_name: &str) {
     eprintln!("Usage: {program_name} <input.tula> <input.tape>");
 }
-
 
 fn start() -> Result<()> {
     let mut args = env::args();

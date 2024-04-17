@@ -5,7 +5,7 @@ Turing Language
 ## Quick Start
 
 ```console
-$ rustc tula.rs
+$ rustc ./src/tula.rs
 $ cd ./examples/01-inc-dec/
 $ ../../tula ./inc.tula ./odd-bits.tape
 ```
