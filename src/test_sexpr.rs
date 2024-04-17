@@ -28,7 +28,7 @@ fn start() -> Result<()> {
 
     let mut lexer = Lexer::new(&source, &source_path);
     let sexpr = Sexpr::parse(&mut lexer)?;
-    sexpr.dump(0);
+    println!("{sexpr:?}");
 
     Ok(())
 }

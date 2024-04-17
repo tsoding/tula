@@ -1,39 +1,55 @@
 mod lexer;
+mod sexpr;
 
 use std::fs;
 use std::result;
-use std::fmt::Write;
+use std::fmt::{self, Write};
 use std::env;
 use std::process::ExitCode;
 use std::collections::HashMap;
 
 use lexer::*;
+use sexpr::*;
 
 type Result<T> = result::Result<T, ()>;
 
 #[derive(Debug)]
 struct Case<'nsa> {
-    state: Symbol<'nsa>,
-    read: Symbol<'nsa>,
-    write: Symbol<'nsa>,
-    step: Symbol<'nsa>,
-    next: Symbol<'nsa>,
+    state: Sexpr<'nsa>,
+    read: Sexpr<'nsa>,
+    write: Sexpr<'nsa>,
+    step: Sexpr<'nsa>,
+    next: Sexpr<'nsa>,
 }
 
 #[derive(Debug)]
 enum Statement<'nsa> {
     Case(Case<'nsa>),
     For {
+        // TODO: Support Sexprs for `var` and `set` in for-loops
         var: Symbol<'nsa>,
         set: Symbol<'nsa>,
         body: Box<Statement<'nsa>>,
     }
 }
 
-impl<'nsa> Statement<'nsa> {
-    fn entry_state(&self, program: &Program<'nsa>) -> Result<Option<Symbol<'nsa>>> {
+impl<'nsa> fmt::Display for Statement<'nsa> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Statement::Case(case) => Ok(Some(case.state)),
+            Self::Case(Case{state, read, write, step, next}) => {
+                write!(f, "case {state} {read} {write} {step} {next}")
+            }
+            Self::For{var, set, body} => {
+                write!(f, "for {var} in {set} {body}", var = var.name, set = set.name)
+            }
+        }
+    }
+}
+
+impl<'nsa> Statement<'nsa> {
+    fn entry_state(&self, program: &Program<'nsa>) -> Result<Option<Sexpr<'nsa>>> {
+        match self {
+            Statement::Case(case) => Ok(Some(case.state.clone())),
             Statement::For{var, set, body} => {
                 if let Some(symbols) = program.sets.get(set.name) {
                     if let Some(symbol) = symbols.first() {
@@ -51,31 +67,31 @@ impl<'nsa> Statement<'nsa> {
 
     fn substitude(&self, var: Symbol<'nsa>, symbol: Symbol<'nsa>) -> Statement<'nsa> {
         match self {
-            &Statement::Case(Case{state, read, write, step, next}) => {
-                let state = if state.name == var.name {symbol} else {state};
-                let read  = if read.name  == var.name {symbol} else {read};
-                // TODO: Implement support for substituting step.
-                // We need to update the parser to enable that.
-                // We also need to do some runtime checks to ensure that only things from the Arrow set are put in the step
-                // let Arrow { -> <- }
-                let write = if write.name == var.name {symbol} else {write};
-                let next  = if next.name  == var.name {symbol} else {next};
+            Statement::Case(Case{state, read, write, step, next}) => {
+                let state = state.substitude(var, symbol);
+                let read  = read.substitude(var, symbol);
+                let write = write.substitude(var, symbol);
+                let step  = step.substitude(var, symbol);
+                let next  = next.substitude(var, symbol);
                 Statement::Case(Case{state, read, write, step, next})
             }
-            Statement::For{var, set, body} => {
-                let var = *var;
-                let set = if set.name == var.name {symbol} else {*set};
-                let body = Box::new(body.substitude(var, set));
-                Statement::For{var, set, body}
+            Statement::For{var: for_var, set: for_set, body} => {
+                // TODO: allow subsituting the sets
+                let body = Box::new(body.substitude(var, symbol));
+                Statement::For{
+                    var: *for_var,
+                    set: *for_set,
+                    body
+                }
             }
         }
     }
 
-    fn match_state(&self, program: &Program<'nsa>, state: Symbol<'nsa>, read: Symbol<'nsa>) -> Result<Option<(Symbol<'nsa>, Symbol<'nsa>, Symbol<'nsa>)>> {
+    fn match_state(&self, program: &Program<'nsa>, state: &Sexpr<'nsa>, read: &Sexpr<'nsa>) -> Result<Option<(Sexpr<'nsa>, Sexpr<'nsa>, Sexpr<'nsa>)>> {
         match self {
             Statement::Case(case) => {
-                if case.state.name == state.name && case.read.name == read.name {
-                    Ok(Some((case.write, case.step, case.next)))
+                if case.state.matches(state) && case.read.matches(read) {
+                    Ok(Some((case.write.clone(), case.step.clone(), case.next.clone())))
                 } else {
                     Ok(None)
                 }
@@ -83,7 +99,8 @@ impl<'nsa> Statement<'nsa> {
             Statement::For{var, set, body} => {
                 if let Some(symbols) = program.sets.get(set.name) {
                     for symbol in symbols {
-                        if let Some(triple) = body.substitude(*var, *symbol).match_state(program, state, read)? {
+                        let subs_body = body.substitude(*var, *symbol);
+                        if let Some(triple) = subs_body.match_state(program, state, read)? {
                             return Ok(Some(triple));
                         }
                     }
@@ -99,9 +116,9 @@ impl<'nsa> Statement<'nsa> {
 
 #[derive(Debug)]
 struct Machine<'nsa> {
-    state: Symbol<'nsa>,
-    tape: Vec<Symbol<'nsa>>,
-    tape_default: Symbol<'nsa>,
+    state: Sexpr<'nsa>,
+    tape: Vec<Sexpr<'nsa>>,
+    tape_default: Sexpr<'nsa>,
     head: usize,
     halt: bool,
 }
@@ -109,25 +126,33 @@ struct Machine<'nsa> {
 impl<'nsa> Machine<'nsa> {
     fn next(&mut self, program: &Program<'nsa>) -> Result<()> {
         for statement in program.statements.iter() {
-            if let Some((write, step, next)) = statement.match_state(program, self.state, self.tape[self.head])? {
+            if let Some((write, step, next)) = statement.match_state(program, &self.state, &self.tape[self.head])? {
                 self.tape[self.head] = write;
-                match step.name {
-                    "<-" => {
-                        if self.head == 0 {
-                            eprintln!("{loc}: ERROR: tape underflow", loc = step.loc);
-                            return Err(());
+                if let Some(step) = step.atom_name() {
+                    match step.name {
+                        "<-" => {
+                            if self.head == 0 {
+                                eprintln!("{loc}: ERROR: tape underflow", loc = step.loc);
+                                return Err(());
+                            }
+                            self.head -= 1;
                         }
-                        self.head -= 1;
-                    }
-                    "->" => {
-                        self.head += 1;
-                        if self.head >= self.tape.len() {
-                            self.tape.push(self.tape_default.clone());
+                        "->" => {
+                            self.head += 1;
+                            if self.head >= self.tape.len() {
+                                self.tape.push(self.tape_default.clone());
+                            }
+                        }
+                        "." => {}
+                        "!" => self.print(),
+                        _ => {
+                            eprintln!("{loc}: ERROR: step is neither -> nor <-", loc = step.loc);
+                            return Err(())
                         }
                     }
-                    _ => {
-                        unreachable!("Parser didn't parse the arrow correctly");
-                    }
+                } else {
+                    eprintln!("{loc}: ERROR: step must be an atom", loc = step.loc());
+                    return Err(())
                 }
                 self.state = next;
                 self.halt = false;
@@ -139,20 +164,20 @@ impl<'nsa> Machine<'nsa> {
 
     fn print(&self) {
         let mut buffer = String::new();
-        let _ = write!(&mut buffer, "{state}: ", state = self.state.name);
+        let _ = write!(&mut buffer, "{state}: ", state = self.state);
         let mut head = 0;
-        for (i, symbol) in self.tape.iter().enumerate() {
+        for (i, sexpr) in self.tape.iter().enumerate() {
             if i == self.head {
                 head = buffer.len();
             }
-            let _ = write!(&mut buffer, "{name} ", name = symbol.name);
+            let _ = write!(&mut buffer, "{sexpr} ");
         }
         println!("{buffer}");
         // TODO: use the field width formating magic or something like that
-        for _ in 0..head {
-            print!(" ");
-        }
-        println!("^");
+        // for _ in 0..head {
+        //     print!(" ");
+        // }
+        // println!("^");
     }
 }
 
@@ -175,7 +200,7 @@ struct Program<'nsa> {
 }
 
 impl<'nsa> Program<'nsa> {
-    fn entry_state(&self) -> Result<Option<Symbol<'nsa>>> {
+    fn entry_state(&self) -> Result<Option<Sexpr<'nsa>>> {
         for statement in self.statements.iter() {
             if let Some(state) = statement.entry_state(self)? {
                 return Ok(Some(state))
@@ -186,11 +211,11 @@ impl<'nsa> Program<'nsa> {
 }
 
 fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Case<'nsa>> {
-    let state = lexer.parse_symbol()?;
-    let read  = lexer.parse_symbol()?;
-    let write = lexer.parse_symbol()?;
-    let step  = lexer.expect_symbols(&["->", "<-"])?;
-    let next  = lexer.parse_symbol()?;
+    let state = Sexpr::parse(lexer)?;
+    let read  = Sexpr::parse(lexer)?;
+    let write = Sexpr::parse(lexer)?;
+    let step  = Sexpr::parse(lexer)?;
+    let next  = Sexpr::parse(lexer)?;
     Ok(Case{state, read, write, step, next})
 }
 
@@ -235,12 +260,12 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
     Ok(program)
 }
 
-fn parse_tape<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Symbol<'nsa>>> {
-    let mut symbols = vec![];
+fn parse_tape<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Sexpr<'nsa>>> {
+    let mut tape = vec![];
     while lexer.peek_symbol().is_some() {
-        symbols.push(lexer.parse_symbol()?);
+        tape.push(Sexpr::parse(lexer)?);
     }
-    Ok(symbols)
+    Ok(tape)
 }
 
 fn usage(program_name: &str) {
@@ -300,7 +325,7 @@ fn start() -> Result<()> {
     };
 
     while !machine.halt {
-        machine.print();
+        // machine.print();
         machine.halt = true;
         machine.next(&program)?;
     }

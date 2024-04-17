@@ -131,6 +131,25 @@ impl<'nsa> Lexer<'nsa> {
             }
         }
 
+        if self.source.starts_with("'") {
+            let mut char_indices = self.source.char_indices();
+            self.advance_loc(char_indices.next().unwrap().1);
+
+            while let Some((_, x)) = char_indices.next() {
+                // TODO: implement escaping inside of symbol literals
+                self.advance_loc(x);
+                if x == '\'' {
+                    break;
+                }
+            }
+
+            let end = char_indices.next().map(|(i, _)| i).unwrap_or(self.source.len());
+
+            let name = &self.source[..end];
+            self.source = &self.source[end..];
+            return Some(Symbol { name, loc })
+        }
+
         let name = self.strip_while(|x| !x.is_whitespace() && !SPECIAL.contains(x));
         Some(Symbol { name, loc })
     }
