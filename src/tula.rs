@@ -203,11 +203,24 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
     match key.name {
         "case" => Ok(Statement::Case(parse_case(lexer)?)),
         "for" => {
-            let var = lexer.parse_symbol()?;
+            let mut vars = vec![];
+            while let Some(symbol) = lexer.peek_symbol() {
+                if symbol.name == "in" {
+                    break;
+                }
+                vars.push(lexer.parse_symbol()?);
+            }
             let _ = lexer.expect_symbols(&["in"])?;
             let set = lexer.parse_symbol()?;
-            let body = Box::new(parse_statement(lexer)?);
-            Ok(Statement::For{var, set, body})
+            let mut result = parse_statement(lexer)?;
+            for var in vars.iter().rev() {
+                result = Statement::For{
+                    var: *var,
+                    set,
+                    body: Box::new(result)
+                }
+            }
+            Ok(result)
         }
         _ => unreachable!()
     }
