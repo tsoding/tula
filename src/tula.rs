@@ -47,37 +47,19 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
 }
 
 impl<'nsa> Statement<'nsa> {
-    fn entry_state(&self, program: &Program<'nsa>) -> Result<Option<Sexpr<'nsa>>> {
-        match self {
-            Statement::Case(case) => Ok(Some(case.state.clone())),
-            Statement::For{var, set, body} => {
-                if let Some(symbols) = program.sets.get(set.name) {
-                    if let Some(symbol) = symbols.first() {
-                        body.substitude(*var, *symbol).entry_state(program)
-                    } else {
-                        Ok(None)
-                    }
-                } else {
-                    eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
-                    Err(())
-                }
-            }
-        }
-    }
-
-    fn substitude(&self, var: Symbol<'nsa>, symbol: Symbol<'nsa>) -> Statement<'nsa> {
+    fn substitude(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Statement<'nsa> {
         match self {
             Statement::Case(Case{state, read, write, step, next}) => {
-                let state = state.substitude(var, symbol);
-                let read  = read.substitude(var, symbol);
-                let write = write.substitude(var, symbol);
-                let step  = step.substitude(var, symbol);
-                let next  = next.substitude(var, symbol);
+                let state = state.substitude(var, sexpr.clone());
+                let read  = read.substitude(var, sexpr.clone());
+                let write = write.substitude(var, sexpr.clone());
+                let step  = step.substitude(var, sexpr.clone());
+                let next  = next.substitude(var, sexpr.clone());
                 Statement::Case(Case{state, read, write, step, next})
             }
             Statement::For{var: for_var, set: for_set, body} => {
                 // TODO: allow subsituting the sets
-                let body = Box::new(body.substitude(var, symbol));
+                let body = Box::new(body.substitude(var, sexpr));
                 Statement::For{
                     var: *for_var,
                     set: *for_set,
@@ -97,9 +79,9 @@ impl<'nsa> Statement<'nsa> {
                 }
             }
             Statement::For{var, set, body} => {
-                if let Some(symbols) = program.sets.get(set.name) {
-                    for symbol in symbols {
-                        let subs_body = body.substitude(*var, *symbol);
+                if let Some(sexprs) = program.sets.get(set.name) {
+                    for sexpr in sexprs {
+                        let subs_body = body.substitude(*var, sexpr.clone());
                         if let Some(triple) = subs_body.match_state(program, state, read)? {
                             return Ok(Some(triple));
                         }
@@ -181,33 +163,30 @@ impl<'nsa> Machine<'nsa> {
     }
 }
 
-fn parse_set<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Symbol<'nsa>>> {
+fn parse_seq_of_sexprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Sexpr<'nsa>>> {
     let _ = lexer.expect_symbols(&["{"])?;
-    let mut set = vec![];
-    while let Some(symbol) = lexer.next_symbol() {
+    let mut seq = vec![];
+    while let Some(symbol) = lexer.peek_symbol() {
         if symbol.name == "}" {
             break;
         }
-        set.push(symbol);
+        seq.push(Sexpr::parse(lexer)?);
     }
-    Ok(set)
+    let _ = lexer.expect_symbols(&["}"])?;
+    Ok(seq)
+}
+
+struct Run<'nsa> {
+    keyword: Symbol<'nsa>,
+    state: Sexpr<'nsa>,
+    tape: Vec<Sexpr<'nsa>>,
 }
 
 #[derive(Default)]
 struct Program<'nsa> {
     statements: Vec<Statement<'nsa>>,
-    sets: HashMap<&'nsa str, Vec<Symbol<'nsa>>>,
-}
-
-impl<'nsa> Program<'nsa> {
-    fn entry_state(&self) -> Result<Option<Sexpr<'nsa>>> {
-        for statement in self.statements.iter() {
-            if let Some(state) = statement.entry_state(self)? {
-                return Ok(Some(state))
-            }
-        }
-        Ok(None)
-    }
+    sets: HashMap<&'nsa str, Vec<Sexpr<'nsa>>>,
+    runs: Vec<Run<'nsa>>,
 }
 
 fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Case<'nsa>> {
@@ -234,10 +213,20 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
     }
 }
 
+fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
+    let keyword = lexer.expect_symbols(&["run"])?;
+    let state = Sexpr::parse(lexer)?;
+    let tape = parse_seq_of_sexprs(lexer)?;
+    Ok(Run {keyword, state, tape})
+}
+
 fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
     let mut program = Program::default();
     while let Some(key) = lexer.peek_symbol() {
         match key.name {
+            "run" => {
+                program.runs.push(parse_run(lexer)?);
+            }
             "case" | "for" => {
                 program.statements.push(parse_statement(lexer)?);
             }
@@ -248,7 +237,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
                     eprintln!("{loc}: ERROR: redefinition of set {name}");
                     return Err(())
                 }
-                let set = parse_set(lexer)?;
+                let set = parse_seq_of_sexprs(lexer)?;
                 program.sets.insert(name, set);
             }
             _ => {
@@ -258,14 +247,6 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
         }
     }
     Ok(program)
-}
-
-fn parse_tape<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Sexpr<'nsa>>> {
-    let mut tape = vec![];
-    while lexer.peek_symbol().is_some() {
-        tape.push(Sexpr::parse(lexer)?);
-    }
-    Ok(tape)
 }
 
 fn program_usage(program_name: &str) {
@@ -310,47 +291,32 @@ const COMMANDS: &[Command] = &[
                 eprintln!("ERROR: could not read file {tula_path}: {err}");
             })?;
             let program = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
-            let state = if let Some(state) = program.entry_state()? {
-                state
-            } else {
-                eprintln!("ERROR: The tule file must have at least one case");
-                return Err(());
-            };
 
-            let tape_path;
-            if let Some(path) = args.next() {
-                tape_path = path;
-            } else {
-                command_usage(program_name, command);
-                eprintln!("ERROR: no input.tape is provided");
-                return Err(());
-            }
-            let tape_source = fs::read_to_string(&tape_path).map_err(|err| {
-                eprintln!("ERROR: could not read file {tape_path}: {err}");
-            })?;
-            let tape = parse_tape(&mut Lexer::new(&tape_source, &tape_path))?;
+            for run in &program.runs {
+                println!("{loc}: run", loc = run.keyword.loc);
 
-            let tape_default;
-            if let Some(symbol) = tape.last().cloned() {
-                tape_default = symbol;
-            } else {
-                eprintln!("ERROR: The tape file may not be empty. I must contain at least one symbol so we know what to fill the infinite tape with");
-                return Err(());
+                let tape_default;
+                if let Some(symbol) = run.tape.last().cloned() {
+                    tape_default = symbol;
+                } else {
+                    eprintln!("ERROR: The tape file may not be empty. I must contain at least one symbol so we know what to fill the infinite tape with");
+                    return Err(());
+                }
+                let mut machine = Machine {
+                    state: run.state.clone(),
+                    tape: run.tape.clone(),
+                    tape_default,
+                    head: 0,
+                    halt: false,
+                };
+
+                while !machine.halt {
+                    machine.print();
+                    machine.halt = true;
+                    machine.next(&program)?;
+                }
             }
 
-            let mut machine = Machine {
-                state,
-                tape,
-                tape_default,
-                head: 0,
-                halt: false,
-            };
-
-            while !machine.halt {
-                machine.print();
-                machine.halt = true;
-                machine.next(&program)?;
-            }
             Ok(())
         }
     },

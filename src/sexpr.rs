@@ -62,19 +62,18 @@ impl<'nsa> Sexpr<'nsa> {
         }
     }
 
-    // TODO: support `symbol` being Sexpr
-    pub fn substitude(&self, var: Symbol<'nsa>, symbol: Symbol<'nsa>) -> Sexpr<'nsa> {
+    pub fn substitude(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Sexpr<'nsa> {
         match self {
             Self::Atom{name} => {
                 if name.name == var.name {
-                    Self::Atom{name: symbol}
+                    sexpr
                 } else {
                     self.clone()
                 }
             }
 
             Self::List{open_paren, items} => {
-                let items = items.iter().map(|item| item.substitude(var, symbol)).collect();
+                let items = items.iter().map(|item| item.substitude(var, sexpr.clone())).collect();
                 Self::List{open_paren: *open_paren, items}
             }
         }
