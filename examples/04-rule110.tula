@@ -4,23 +4,26 @@ let Cells { . # }
 
 case Entry & & -> I
 
-for a     in Cells case I a a -> (I a)
-for a b   in Cells case (I a) b b -> (I a b)
+for a     in Cells case I       a a -> (I a)
+for a b   in Cells case (I a)   b b -> (I a b)
 for a b c in Cells case (I a b) c c <- (R a b c)
-for a b   in Cells case (I a b) & & . Print
+for a b   in Cells case (I a b) & & .  Print
 
 case Print & & ! Reset1
 case Reset1 & & <- Reset
 for a in Cells case Reset a a <- Reset
 case Reset & & -> I
 
-for _ in Cells case (R . . .) _ . -> (I .)
-for _ in Cells case (R . . #) _ # -> (I .)
-for _ in Cells case (R . # .) _ # -> (I #)
-for _ in Cells case (R . # #) _ # -> (I #)
-for _ in Cells case (R # . .) _ . -> (I .)
-for _ in Cells case (R # . #) _ # -> (I .)
-for _ in Cells case (R # # .) _ # -> (I #)
-for _ in Cells case (R # # #) _ . -> (I #)
+for _ in Cells {
+    case (R . . .) _ . -> (I .)
+    case (R . . #) _ # -> (I .)
+    case (R . # .) _ # -> (I #)
+    case (R . # #) _ # -> (I #)
+    case (R # . .) _ . -> (I .)
+    case (R # . #) _ # -> (I .)
+    case (R # # .) _ # -> (I #)
+    case (R # # #) _ . -> (I #)
+}
 
+// TODO: how to limit the amount of iterations
 run Entry { & . . . . . . . . . . . . . . . # . & }

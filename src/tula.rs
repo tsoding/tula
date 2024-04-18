@@ -25,6 +25,9 @@ struct Case<'nsa> {
 #[derive(Debug)]
 enum Statement<'nsa> {
     Case(Case<'nsa>),
+    Block {
+        statements: Vec<Statement<'nsa>>
+    },
     For {
         // TODO: Support Sexprs for `var` and `set` in for-loops
         var: Symbol<'nsa>,
@@ -36,6 +39,16 @@ enum Statement<'nsa> {
 impl<'nsa> fmt::Display for Statement<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Block{statements} => {
+                write!(f, "{{")?;
+                for (i, statement) in statements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{statement}")?;
+                }
+                write!(f, "}}")
+            }
             Self::Case(Case{state, read, write, step, next}) => {
                 write!(f, "case {state} {read} {write} {step} {next}")
             }
@@ -49,6 +62,11 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
 impl<'nsa> Statement<'nsa> {
     fn substitude(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Statement<'nsa> {
         match self {
+            Statement::Block{statements} => {
+                Statement::Block {
+                    statements: statements.iter().map(|s| s.substitude(var, sexpr.clone())).collect()
+                }
+            }
             Statement::Case(Case{state, read, write, step, next}) => {
                 let state = state.substitude(var, sexpr.clone());
                 let read  = read.substitude(var, sexpr.clone());
@@ -77,6 +95,14 @@ impl<'nsa> Statement<'nsa> {
                 } else {
                     Ok(None)
                 }
+            }
+            Statement::Block{statements} => {
+                for statement in statements {
+                    if let Some(triple) = statement.match_state(program, state, read)? {
+                        return Ok(Some(triple));
+                    }
+                }
+                Ok(None)
             }
             Statement::For{var, set, body} => {
                 if let Some(sexprs) = program.sets.get(set.name) {
@@ -207,9 +233,20 @@ fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Case<'nsa>> {
 }
 
 fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
-    let key = lexer.expect_symbols(&["case", "for"])?;
+    let key = lexer.expect_symbols(&["case", "for", "{"])?;
     match key.name {
         "case" => Ok(Statement::Case(parse_case(lexer)?)),
+        "{" => {
+            let mut statements = vec![];
+            while let Some(symbol) = lexer.peek_symbol() {
+                if symbol.name == "}" {
+                    break;
+                }
+                statements.push(parse_statement(lexer)?);
+            }
+            let _ = lexer.expect_symbols(&["}"])?;
+            Ok(Statement::Block{statements})
+        }
         "for" => {
             let mut vars = vec![];
             while let Some(symbol) = lexer.peek_symbol() {
