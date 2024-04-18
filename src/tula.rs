@@ -174,10 +174,10 @@ impl<'nsa> Machine<'nsa> {
         }
         println!("{buffer}");
         // TODO: use the field width formating magic or something like that
-        // for _ in 0..head {
-        //     print!(" ");
-        // }
-        // println!("^");
+        for _ in 0..head {
+            print!(" ");
+        }
+        println!("^");
     }
 }
 
@@ -347,7 +347,7 @@ const COMMANDS: &[Command] = &[
             };
 
             while !machine.halt {
-                // machine.print();
+                machine.print();
                 machine.halt = true;
                 machine.next(&program)?;
             }
