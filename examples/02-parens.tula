@@ -3,7 +3,7 @@
 let Parens { '(' ')' }
 let Bits { 0 1 }
 
-run Entry { & '(' '(' ')' ')' ')' & 0 }
+trace Entry { & '(' '(' ')' ')' ')' & 0 }
 
 case Entry & & -> Pick
 

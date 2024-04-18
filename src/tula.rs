@@ -145,6 +145,13 @@ impl<'nsa> Machine<'nsa> {
     }
 
     fn print(&self) {
+        for sexpr in &self.tape {
+            let _ = print!("{sexpr} ");
+        }
+        println!()
+    }
+
+    fn trace(&self) {
         let mut buffer = String::new();
         let _ = write!(&mut buffer, "{state}: ", state = self.state);
         let mut head = 0;
@@ -180,6 +187,7 @@ struct Run<'nsa> {
     keyword: Symbol<'nsa>,
     state: Sexpr<'nsa>,
     tape: Vec<Sexpr<'nsa>>,
+    trace: bool,
 }
 
 #[derive(Default)]
@@ -227,17 +235,18 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
 }
 
 fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
-    let keyword = lexer.expect_symbols(&["run"])?;
+    let keyword = lexer.expect_symbols(&["run", "trace"])?;
     let state = Sexpr::parse(lexer)?;
     let tape = parse_seq_of_sexprs(lexer)?;
-    Ok(Run {keyword, state, tape})
+    let trace = keyword.name == "trace";
+    Ok(Run {keyword, state, tape, trace})
 }
 
 fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
     let mut program = Program::default();
     while let Some(key) = lexer.peek_symbol() {
         match key.name {
-            "run" => {
+            "run" | "trace" => {
                 program.runs.push(parse_run(lexer)?);
             }
             "case" | "for" => {
@@ -324,7 +333,9 @@ const COMMANDS: &[Command] = &[
                 };
 
                 while !machine.halt {
-                    machine.print();
+                    if run.trace {
+                        machine.trace();
+                    }
                     machine.halt = true;
                     machine.next(&program)?;
                 }
