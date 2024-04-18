@@ -395,8 +395,10 @@ const COMMANDS: &[Command] = &[
             })?;
 
             let mut lexer = Lexer::new(&source, &source_path);
-            let sexpr = Sexpr::parse(&mut lexer)?;
-            println!("{sexpr}");
+            while lexer.peek_symbol().is_some() {
+                let sexpr = Sexpr::parse(&mut lexer)?;
+                println!("{loc}: {sexpr}", loc = sexpr.loc());
+            }
 
             Ok(())
         }
