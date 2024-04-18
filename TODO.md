@@ -7,7 +7,7 @@
 - [ ] Pattern matching in `for`-loops
   ```tula
   let Invert { (0 1) (1 0) }
-  for (a, b) in Invert
+  for (a b) in Invert
   case I a b -> I
   ```
 - [ ] Blocks of statements
@@ -22,3 +22,4 @@
   - It should basically get rid of all the for loops.
 - [ ] Case matching based on type checking instead of literal symbol
       substitution.
+- [ ] Tracing state vs print it

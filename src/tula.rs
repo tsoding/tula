@@ -268,68 +268,160 @@ fn parse_tape<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Sexpr<'nsa>>> {
     Ok(tape)
 }
 
-fn usage(program_name: &str) {
-    eprintln!("Usage: {program_name} <input.tula> <input.tape>");
+fn program_usage(program_name: &str) {
+    eprintln!("Usage: {program_name} <command> [ARGUMENTS]");
+    eprintln!("Commands:");
+    for command in COMMANDS.iter() {
+        let command_name = &command.name;
+        let command_signature = &command.signature;
+        let command_description = &command.description;
+        eprintln!("    {command_name} {command_signature} - {command_description}");
+    }
 }
+
+fn command_usage(program_name: &str, command: &Command) {
+    let command_name = &command.name;
+    let command_signature = &command.signature;
+    eprintln!("Usage: {program_name} {command_name} {command_signature}")
+}
+
+struct Command {
+    name: &'static str,
+    description: &'static str,
+    signature: &'static str,
+    run: fn (command: &Command, program_name: &str, args: env::Args) -> Result<()>,
+}
+
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "run",
+        description: "Run the Tula Program",
+        signature: "<input.tula> <input.tape>",
+        run: |command, program_name, mut args| {
+            let tula_path;
+            if let Some(path) = args.next() {
+                tula_path = path;
+            } else {
+                command_usage(program_name, command);
+                eprintln!("ERROR: no input.tula is provided");
+                return Err(());
+            }
+            let tula_source = fs::read_to_string(&tula_path).map_err(|err| {
+                eprintln!("ERROR: could not read file {tula_path}: {err}");
+            })?;
+            let program = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
+            let state = if let Some(state) = program.entry_state()? {
+                state
+            } else {
+                eprintln!("ERROR: The tule file must have at least one case");
+                return Err(());
+            };
+
+            let tape_path;
+            if let Some(path) = args.next() {
+                tape_path = path;
+            } else {
+                command_usage(program_name, command);
+                eprintln!("ERROR: no input.tape is provided");
+                return Err(());
+            }
+            let tape_source = fs::read_to_string(&tape_path).map_err(|err| {
+                eprintln!("ERROR: could not read file {tape_path}: {err}");
+            })?;
+            let tape = parse_tape(&mut Lexer::new(&tape_source, &tape_path))?;
+
+            let tape_default;
+            if let Some(symbol) = tape.last().cloned() {
+                tape_default = symbol;
+            } else {
+                eprintln!("ERROR: The tape file may not be empty. I must contain at least one symbol so we know what to fill the infinite tape with");
+                return Err(());
+            }
+
+            let mut machine = Machine {
+                state,
+                tape,
+                tape_default,
+                head: 0,
+                halt: false,
+            };
+
+            while !machine.halt {
+                // machine.print();
+                machine.halt = true;
+                machine.next(&program)?;
+            }
+            Ok(())
+        }
+    },
+    Command {
+        name: "lex",
+        description: "Lex the given file to see how the Lexer behaves",
+        signature: "<input-file>",
+        run: |command, program_name, mut args| {
+            let input_path;
+            if let Some(arg) = args.next() {
+                input_path = arg;
+            } else {
+                command_usage(program_name, command);
+                return Err(());
+            }
+
+            let input_source = fs::read_to_string(&input_path).map_err(|err| {
+                eprintln!("ERROR: could not read file {input_path}: {err}");
+            })?;
+
+            for Symbol{loc, name} in Lexer::new(&input_source, &input_path) {
+                println!("{loc}: {name}");
+            }
+            Ok(())
+        },
+    },
+    Command {
+        name: "sexpr",
+        signature: "<input-file>",
+        description: "Parse the S-expression from the file to test the behavior of the Parser",
+        run: |command, program_name, mut args| {
+            let source_path;
+            if let Some(arg) = args.next() {
+                source_path = arg;
+            } else {
+                command_usage(program_name, command);
+                return Err(());
+            }
+
+            let source = fs::read_to_string(&source_path).map_err(|err| {
+                eprintln!("ERROR: could not read file {source_path}: {err}");
+            })?;
+
+            let mut lexer = Lexer::new(&source, &source_path);
+            let sexpr = Sexpr::parse(&mut lexer)?;
+            println!("{sexpr}");
+
+            Ok(())
+        }
+    }
+];
 
 fn start() -> Result<()> {
     let mut args = env::args();
     let program_name = args.next().expect("Program name is alway present");
 
-    let tula_path;
-    if let Some(path) = args.next() {
-        tula_path = path;
+    let command_name;
+    if let Some(arg) = args.next() {
+        command_name = arg;
     } else {
-        usage(&program_name);
-        eprintln!("ERROR: no input.tula is provided");
-        return Err(());
-    }
-    let tula_source = fs::read_to_string(&tula_path).map_err(|err| {
-        eprintln!("ERROR: could not read file {tula_path}: {err}");
-    })?;
-    let program = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
-    let state = if let Some(state) = program.entry_state()? {
-        state
-    } else {
-        eprintln!("ERROR: The tule file must have at least one case");
-        return Err(());
-    };
-
-    let tape_path;
-    if let Some(path) = args.next() {
-        tape_path = path;
-    } else {
-        usage(&program_name);
-        eprintln!("ERROR: no input.tape is provided");
-        return Err(());
-    }
-    let tape_source = fs::read_to_string(&tape_path).map_err(|err| {
-        eprintln!("ERROR: could not read file {tape_path}: {err}");
-    })?;
-    let tape = parse_tape(&mut Lexer::new(&tape_source, &tape_path))?;
-
-    let tape_default;
-    if let Some(symbol) = tape.last().cloned() {
-        tape_default = symbol;
-    } else {
-        eprintln!("ERROR: The tape file may not be empty. I must contain at least one symbol so we know what to fill the infinite tape with");
-        return Err(());
+        program_usage(&program_name);
+        eprintln!("ERROR: no command is provided");
+        return Err(())
     }
 
-    let mut machine = Machine {
-        state,
-        tape,
-        tape_default,
-        head: 0,
-        halt: false,
-    };
-
-    while !machine.halt {
-        // machine.print();
-        machine.halt = true;
-        machine.next(&program)?;
+    if let Some(command) = COMMANDS.iter().find(|command| command.name == command_name) {
+        (command.run)(command, &program_name, args)
+    } else {
+        eprintln!("ERROR: no command with the name {command_name}");
+        return Err(())
     }
-    Ok(())
 }
 
 fn main() -> ExitCode {
