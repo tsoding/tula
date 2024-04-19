@@ -21,7 +21,7 @@ case <State> <Read> <Write> <Step> <Next>
 - `<Step>` - Where the Head of the Machine must step (`<-` left or `->` right),
 - `<Next>` - What is the next state of the Machine.
 
-## Example
+### Example
 
 Simple program that increments a binary number (least significant bits come first):
 
@@ -68,7 +68,7 @@ There is no particular reason for using S-expressions specifically in this langu
 Tula supports defining Sets (which are collections of S-expression) and using [Universal Quantification](https://en.wikipedia.org/wiki/Universal_quantification) on those Sets to generate Rules automatically.
 
 ```js
-let Set { a b c d }
+let Set { a b c }
 for n in Set case S n 0 -> S
 ```
 
@@ -78,20 +78,54 @@ The above program will expand to
 case S a 0 -> S
 case S b 0 -> S
 case S c 0 -> S
-case S d 0 -> S
 ```
+
+You can nest the Quantifiers:
+
+```js
+let Set { a b c }
+for n in Set for m in Set case S n m -> S
+```
+
+This above expands to this:
+
+```
+case S a a -> S
+case S a b -> S
+case S a c -> S
+case S b a -> S
+case S b b -> S
+case S b c -> S
+case S c a -> S
+case S c b -> S
+case S c c -> S
+```
+
+Nested Quantifiers that iterate over the same set can be collapsed like so:
+
+```js
+let Set { a b c }
+for n m in Set case S n m -> S
+```
+
+### Example
 
 A simple example that iterates the Tape of Pairs of Numbers and swaps each pair until it reaches the delimiter `&`:
 
 ```js
 let Numbers { 1 2 3 4 }
 
-for a in Numbers
-for b in Numbers
+// For each `a` and `b` from the set of Numbers when in the state `Swap` and read `(a b)`
+// replace it with `(b a)` move the head to the right and stay in the `Swap` state loop
+// over the entire tape until you encounter something else
+for a b in Numbers
 case Swap (a b) (b a) -> Swap
 
+// When in the state `Swap` and read `&`, keep it as `&` move the head to the right and `Halt`
 case Swap & & -> Halt
 
+// Execute and trace the program starting from state `Swap` with the tape that contains a 
+// bunch of pairs of numbers.
 trace Swap { (1 2) (2 3) (3 4) & }
 ```
 
@@ -110,4 +144,4 @@ Halt: (2 1) (3 2) (4 3) & &
                           ^
 ```
 
-The tape is infinite to the right and filled with the last symbol. In the example above it's `&`.
+The tape is infinite to the right (but not the left!) and filled with the last symbol. In the example above it's `&`.
