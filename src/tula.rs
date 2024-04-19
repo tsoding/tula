@@ -13,7 +13,7 @@ use sexpr::*;
 
 type Result<T> = result::Result<T, ()>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Case<'nsa> {
     state: Sexpr<'nsa>,
     read: Sexpr<'nsa>,
@@ -22,7 +22,7 @@ struct Case<'nsa> {
     next: Sexpr<'nsa>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Statement<'nsa> {
     Case(Case<'nsa>),
     Block {
@@ -30,7 +30,7 @@ enum Statement<'nsa> {
     },
     For {
         // TODO: Support Sexprs for `var` and `set` in for-loops
-        var: Symbol<'nsa>,
+        var: Sexpr<'nsa>,
         set: Symbol<'nsa>,
         body: Box<Statement<'nsa>>,
     }
@@ -53,33 +53,33 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
                 write!(f, "case {state} {read} {write} {step} {next}")
             }
             Self::For{var, set, body} => {
-                write!(f, "for {var} in {set} {body}", var = var.name, set = set.name)
+                write!(f, "for {var} in {set} {body}", set = set.name)
             }
         }
     }
 }
 
 impl<'nsa> Statement<'nsa> {
-    fn substitude(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Statement<'nsa> {
+    fn substitute(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Statement<'nsa> {
         match self {
             Statement::Block{statements} => {
                 Statement::Block {
-                    statements: statements.iter().map(|s| s.substitude(var, sexpr.clone())).collect()
+                    statements: statements.iter().map(|s| s.substitute(var, sexpr.clone())).collect()
                 }
             }
             Statement::Case(Case{state, read, write, step, next}) => {
-                let state = state.substitude(var, sexpr.clone());
-                let read  = read.substitude(var, sexpr.clone());
-                let write = write.substitude(var, sexpr.clone());
-                let step  = step.substitude(var, sexpr.clone());
-                let next  = next.substitude(var, sexpr.clone());
+                let state = state.substitute(var, sexpr.clone());
+                let read  = read.substitute(var, sexpr.clone());
+                let write = write.substitute(var, sexpr.clone());
+                let step  = step.substitute(var, sexpr.clone());
+                let next  = next.substitute(var, sexpr.clone());
                 Statement::Case(Case{state, read, write, step, next})
             }
             Statement::For{var: for_var, set: for_set, body} => {
                 // TODO: allow subsituting the sets
-                let body = Box::new(body.substitude(var, sexpr));
+                let body = Box::new(body.substitute(var, sexpr));
                 Statement::For{
-                    var: *for_var,
+                    var: for_var.clone(),
                     set: *for_set,
                     body
                 }
@@ -107,9 +107,19 @@ impl<'nsa> Statement<'nsa> {
             Statement::For{var, set, body} => {
                 if let Some(sexprs) = program.sets.get(set.name) {
                     for sexpr in sexprs {
-                        let subs_body = body.substitude(*var, sexpr.clone());
-                        if let Some(triple) = subs_body.match_state(program, state, read)? {
-                            return Ok(Some(triple));
+                        let mut bindings = HashMap::new();
+                        if var.pattern_match(sexpr, &mut bindings) {
+                            let mut subs_body = (**body).clone();
+                            for (key, value) in bindings {
+                                subs_body = subs_body.substitute(key, value);
+                            }
+                            if let Some(triple) = subs_body.match_state(program, state, read)? {
+                                return Ok(Some(triple));
+                            }
+                        } else {
+                            eprintln!("{loc}: ERROR: {var} does not match {sexpr} from set {set}", loc = var.loc(), set = set.name);
+                            eprintln!("{loc}: NOTE: the matched value is located here", loc = sexpr.loc());
+                            return Err(())
                         }
                     }
                     Ok(None)
@@ -253,14 +263,14 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
                 if symbol.name == "in" {
                     break;
                 }
-                vars.push(lexer.parse_symbol()?);
+                vars.push(Sexpr::parse(lexer)?);
             }
             let _ = lexer.expect_symbols(&["in"])?;
             let set = lexer.parse_symbol()?;
             let mut result = parse_statement(lexer)?;
             for var in vars.iter().rev() {
                 result = Statement::For{
-                    var: *var,
+                    var: var.clone(),
                     set,
                     body: Box::new(result)
                 }

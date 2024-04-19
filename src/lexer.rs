@@ -1,6 +1,7 @@
 use std::fmt;
 use std::iter::Iterator;
 use std::fmt::Write;
+use std::hash::{Hash, Hasher};
 use super::Result;
 
 pub const SPECIAL: &[char] = &['(', ')', '{', '}', ':'];
@@ -16,6 +17,20 @@ pub struct Loc<'nsa> {
 pub struct Symbol<'nsa> {
     pub name: &'nsa str,
     pub loc: Loc<'nsa>,
+}
+
+impl<'nsa> PartialEq for Symbol<'nsa> {
+    fn eq(&self, other: &Symbol<'nsa>) -> bool {
+        self.name.eq(other.name)
+    }
+}
+
+impl<'nsa> Eq for Symbol<'nsa> {}
+
+impl<'nsa> Hash for Symbol<'nsa> {
+    fn hash<H>(&self, h: &mut H) where H: Hasher {
+        self.name.hash(h)
+    }
 }
 
 impl<'nsa> fmt::Display for Loc<'nsa> {

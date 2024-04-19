@@ -1,5 +1,6 @@
 use lexer::*;
 use std::fmt;
+use std::collections::HashMap;
 use super::Result;
 
 #[derive(Debug, Clone)]
@@ -62,7 +63,7 @@ impl<'nsa> Sexpr<'nsa> {
         }
     }
 
-    pub fn substitude(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Sexpr<'nsa> {
+    pub fn substitute(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Sexpr<'nsa> {
         match self {
             Self::Atom{name} => {
                 if name.name == var.name {
@@ -73,7 +74,7 @@ impl<'nsa> Sexpr<'nsa> {
             }
 
             Self::List{open_paren, items} => {
-                let items = items.iter().map(|item| item.substitude(var, sexpr.clone())).collect();
+                let items = items.iter().map(|item| item.substitute(var, sexpr.clone())).collect();
                 Self::List{open_paren: *open_paren, items}
             }
         }
@@ -104,6 +105,28 @@ impl<'nsa> Sexpr<'nsa> {
         match self {
             Self::Atom{name} => &name.loc,
             Self::List{open_paren, ..} => &open_paren.loc,
+        }
+    }
+
+    pub fn pattern_match(&self, value: &Sexpr<'nsa>, bindings: &mut HashMap<Symbol<'nsa>, Sexpr<'nsa>>) -> bool {
+        match (self, value) {
+            (Sexpr::Atom{name}, _) => {
+                bindings.insert(*name, value.clone());
+                true
+            }
+            (Sexpr::List{items: pattern_items, ..}, Sexpr::List{items: value_items, ..}) => {
+                if pattern_items.len() == value_items.len() {
+                    for (a, b) in pattern_items.iter().zip(value_items.iter()) {
+                        if !a.pattern_match(b, bindings) {
+                            return false;
+                        }
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false
         }
     }
 }
