@@ -60,6 +60,43 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
 }
 
 impl<'nsa> Statement<'nsa> {
+    fn expand(&self, program: &Program) -> Result<()> {
+        match self {
+            Statement::Case(_) => {
+                println!("{self}");
+                Ok(())
+            },
+            Statement::For{var, set, body} => {
+                if let Some(sexprs) = program.sets.get(set.name) {
+                    for sexpr in sexprs {
+                        let mut bindings = HashMap::new();
+                        if var.pattern_match(sexpr, &mut bindings) {
+                            let mut subs_body = (**body).clone();
+                            for (key, value) in bindings {
+                                subs_body = subs_body.substitute(key, value);
+                            }
+                            subs_body.expand(program)?;
+                        } else {
+                            eprintln!("{loc}: ERROR: {var} does not match {sexpr} from set {set}", loc = var.loc(), set = set.name);
+                            eprintln!("{loc}: NOTE: the matched value is located here", loc = sexpr.loc());
+                            return Err(())
+                        }
+                    }
+                    Ok(())
+                } else {
+                    eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
+                    Err(())
+                }
+            }
+            Statement::Block{statements} => {
+                for statement in statements.iter() {
+                    statement.expand(program)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
     fn substitute(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Statement<'nsa> {
         match self {
             Statement::Block{statements} => {
@@ -439,6 +476,48 @@ const COMMANDS: &[Command] = &[
 
             Ok(())
         }
+    },
+    Command {
+        name: "expand",
+        description: "Expands all the Universal Quantifiers hardcoding all of the cases",
+        signature: "<input.tula>",
+        run: |command, program_name: &str, mut args: env::Args| {
+            let source_path;
+            if let Some(arg) = args.next() {
+                source_path = arg;
+            } else {
+                command_usage(program_name, command);
+                return Err(());
+            }
+
+            let source = fs::read_to_string(&source_path).map_err(|err| {
+                eprintln!("ERROR: could not read file {source_path}: {err}");
+            })?;
+
+            let program = parse_program(&mut Lexer::new(&source, &source_path))?;
+
+            for statement in &program.statements {
+                statement.expand(&program)?;
+            }
+            for run in &program.runs {
+                if run.trace {
+                    print!("trace");
+                } else {
+                    print!("run");
+                }
+                print!(" {entry}", entry = run.state);
+                print!(" {{");
+                for (i, sexpr) in run.tape.iter().enumerate() {
+                    if i > 0 {
+                        print!(" ");
+                    }
+                    print!("{sexpr}");
+                }
+                print!("}}");
+            }
+            println!();
+            Ok(())
+        },
     }
 ];
 

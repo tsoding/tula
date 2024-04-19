@@ -1,7 +1,6 @@
 let Numbers { 1 2 3 4 }
 
-for a in Numbers
-for b in Numbers
+for a b in Numbers
 case Swap (a b) (b a) -> Swap
 case Swap & & -> Halt
 

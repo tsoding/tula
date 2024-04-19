@@ -24,7 +24,7 @@
   case I 0 1 -> I
   case I 1 0 -> I
   ```
-- [ ] Command to expand all the rules.
+- [x] Command to expand all the rules.
   - It should basically get rid of all the for loops.
 - [ ] Case matching based on type checking instead of literal symbol
       substitution.
