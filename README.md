@@ -26,7 +26,7 @@ case <State> <Read> <Write> <Step> <Next>
 Simple program that increments a binary number (least significant bits come first):
 
 ```js
-// When in the state `Inc` and read `0`, replace it with `1` move the head 
+// When in the state `Inc` and read `0`, replace it with `1` move the head
 // to the right and switch to the state `Halt` which halts the program.
 case Inc 0 1 -> Halt
 
@@ -124,7 +124,7 @@ case Swap (a b) (b a) -> Swap
 // When in the state `Swap` and read `&`, keep it as `&` move the head to the right and `Halt`
 case Swap & & -> Halt
 
-// Execute and trace the program starting from state `Swap` with the tape that contains a 
+// Execute and trace the program starting from state `Swap` with the tape that contains a
 // bunch of pairs of numbers.
 trace Swap { (1 2) (2 3) (3 4) & }
 ```
