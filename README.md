@@ -87,7 +87,7 @@ let Set { a b c }
 for n in Set for m in Set case S n m -> S
 ```
 
-This above expands to this:
+The above expands to this:
 
 ```js
 case S a a -> S
