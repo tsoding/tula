@@ -150,7 +150,7 @@ impl<'nsa> Lexer<'nsa> {
             return Some(Symbol { name, loc })
         }
 
-        let name = self.strip_while(|x| !x.is_whitespace() && !SPECIAL.contains(x));
+        let name = self.strip_while(|x| !x.is_whitespace() && !SPECIAL.contains(x) && *x != '\'');
         Some(Symbol { name, loc })
     }
 
