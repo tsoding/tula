@@ -89,7 +89,7 @@ for n in Set for m in Set case S n m -> S
 
 This above expands to this:
 
-```
+```js
 case S a a -> S
 case S a b -> S
 case S a c -> S
