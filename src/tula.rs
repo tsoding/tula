@@ -59,7 +59,99 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
     }
 }
 
+type Scope<'nsa> = HashMap<Symbol<'nsa>, Vec<Sexpr<'nsa>>>;
+
+fn split_set_into_scope<'nsa>(program: &Program<'nsa>, var: &Sexpr<'nsa>, set: &Symbol<'nsa>) -> Result<Scope<'nsa>> {
+    if let Some(sexprs) = program.sets.get(set.name) {
+        let mut scope = Scope::new();
+        for sexpr in sexprs {
+            let mut bindings = HashMap::new();
+            if var.pattern_match(sexpr, None, &mut bindings) {
+                for (key, value) in bindings {
+                    if let Some(scope_set) = scope.get_mut(&key) {
+                        scope_set.push(value)
+                    } else {
+                        scope.insert(key, vec![value]);
+                    }
+                }
+            } else {
+                eprintln!("{loc}: ERROR: {var} does not match {sexpr} from set {set}", loc = var.loc(), set = set.name);
+                eprintln!("{loc}: NOTE: the matched value is located here", loc = sexpr.loc());
+                return Err(())
+            }
+        }
+        Ok(scope)
+    } else {
+        eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
+        Err(())
+    }
+}
+
 impl<'nsa> Statement<'nsa> {
+    fn type_check_case(&self, program: &Program<'nsa>, state: &Sexpr<'nsa>, read: &Sexpr<'nsa>, scope: &mut Scope<'nsa>) -> Result<Option<(Sexpr<'nsa>, Sexpr<'nsa>, Sexpr<'nsa>)>> {
+        match self {
+            Statement::Case(case) => {
+                // for (name, scope_set) in scope.iter() {
+                //     print!("{name} =>", name = name.name);
+                //     for sexpr in scope_set.iter() {
+                //         print!(" {sexpr}");
+                //     }
+                //     println!()
+                // }
+                let mut bindings = HashMap::new();
+                if !case.state.pattern_match(state, Some(scope), &mut bindings) {
+                    return Ok(None)
+                }
+                if !case.read.pattern_match(read, Some(scope), &mut bindings) {
+                    return Ok(None)
+                }
+                // for (name, value) in &bindings {
+                //     println!("{name} => {value}", name = name.name);
+                // }
+                let mut write = case.write.clone();
+                let mut step  = case.step.clone();
+                let mut next  = case.next.clone();
+                for (name, value) in &bindings {
+                    if let Some(scope_set) = scope.get(name) {
+                        if !scope_set.contains(value) {
+                            return Ok(None)
+                        }
+                    } else {
+                        unreachable!("Variable is never gonna get into bindings if it's not in the scope");
+                    }
+                    write = write.substitute(*name, value.clone());
+                    step = step.substitute(*name, value.clone());
+                    next = next.substitute(*name, value.clone());
+                }
+                Ok(Some((write, step, next)))
+            }
+            Statement::Block{statements} => {
+                for statement in statements {
+                    if let Some(triple) = statement.type_check_case(program, state, read, scope)? {
+                        return Ok(Some(triple))
+                    }
+                }
+                Ok(None)
+            }
+            Statement::For{var, set, body} => {
+                let temp_scope = split_set_into_scope(program, var, set)?;
+                for (name, temp_set) in temp_scope.iter() {
+                    if let Some((shadowed_name, _)) = scope.get_key_value(name) {
+                        println!("{loc}: ERROR: {name} shadows another name in the higher scope", loc = name.loc, name = name.name);
+                        println!("{loc}: NOTE: the shadowed name is located here", loc = shadowed_name.loc);
+                        return Err(())
+                    }
+                    scope.insert(*name, temp_set.clone());
+                }
+                let result = body.type_check_case(program, state, read, scope);
+                for (name, _) in &temp_scope {
+                    scope.remove(name);
+                }
+                result
+            }
+        }
+    }
+
     fn expand(&self, program: &Program) -> Result<()> {
         match self {
             Statement::Case(_) => {
@@ -70,7 +162,7 @@ impl<'nsa> Statement<'nsa> {
                 if let Some(sexprs) = program.sets.get(set.name) {
                     for sexpr in sexprs {
                         let mut bindings = HashMap::new();
-                        if var.pattern_match(sexpr, &mut bindings) {
+                        if var.pattern_match(sexpr, None, &mut bindings) {
                             let mut subs_body = (**body).clone();
                             for (key, value) in bindings {
                                 subs_body = subs_body.substitute(key, value);
@@ -145,7 +237,7 @@ impl<'nsa> Statement<'nsa> {
                 if let Some(sexprs) = program.sets.get(set.name) {
                     for sexpr in sexprs {
                         let mut bindings = HashMap::new();
-                        if var.pattern_match(sexpr, &mut bindings) {
+                        if var.pattern_match(sexpr, None, &mut bindings) {
                             let mut subs_body = (**body).clone();
                             for (key, value) in bindings {
                                 subs_body = subs_body.substitute(key, value);
@@ -181,7 +273,9 @@ struct Machine<'nsa> {
 impl<'nsa> Machine<'nsa> {
     fn next(&mut self, program: &Program<'nsa>) -> Result<()> {
         for statement in program.statements.iter() {
-            if let Some((write, step, next)) = statement.match_state(program, &self.state, &self.tape[self.head])? {
+            // if let Some((write, step, next)) = statement.match_state(program, &self.state, &self.tape[self.head])? {
+            let mut scope = Scope::new();
+            if let Some((write, step, next)) = statement.type_check_case(program, &self.state, &self.tape[self.head], &mut scope)? {
                 self.tape[self.head] = write;
                 if let Some(step) = step.atom_name() {
                     match step.name {

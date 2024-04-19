@@ -1,9 +1,9 @@
 use lexer::*;
 use std::fmt;
 use std::collections::HashMap;
-use super::Result;
+use super::{Result, Scope};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Sexpr<'nsa> {
     Atom {
         name: Symbol<'nsa>,
@@ -108,16 +108,29 @@ impl<'nsa> Sexpr<'nsa> {
         }
     }
 
-    pub fn pattern_match(&self, value: &Sexpr<'nsa>, bindings: &mut HashMap<Symbol<'nsa>, Sexpr<'nsa>>) -> bool {
+    pub fn pattern_match(&self, value: &Sexpr<'nsa>, scope: Option<&Scope<'nsa>>, bindings: &mut HashMap<Symbol<'nsa>, Sexpr<'nsa>>) -> bool {
         match (self, value) {
             (Sexpr::Atom{name}, _) => {
-                bindings.insert(*name, value.clone());
-                true
+                if let Some(scope) = scope {
+                    if scope.contains_key(name) {
+                        // TODO: check if the name already exists in the bindings
+                        bindings.insert(*name, value.clone());
+                        true
+                    } else {
+                        match value {
+                            Sexpr::Atom{name: name2} => name == name2,
+                            _ => false,
+                        }
+                    }
+                } else {
+                    bindings.insert(*name, value.clone());
+                    true
+                }
             }
             (Sexpr::List{items: pattern_items, ..}, Sexpr::List{items: value_items, ..}) => {
                 if pattern_items.len() == value_items.len() {
                     for (a, b) in pattern_items.iter().zip(value_items.iter()) {
-                        if !a.pattern_match(b, bindings) {
+                        if !a.pattern_match(b, scope, bindings) {
                             return false;
                         }
                     }
