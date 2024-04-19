@@ -80,11 +80,34 @@ case S b 0 -> S
 case S c 0 -> S
 ```
 
-You can nest the Quantifiers:
+Note that `for n in Set` quantifier is applied only to a single statement that follows it. To apply the quantifier to a block of statements use curly braces:
 
 ```js
 let Set { a b c }
-for n in Set for m in Set case S n m -> S
+for n in Set {
+    case S n 0 -> S
+    case I n 1 -> I
+}
+```
+
+The above expands to:
+
+```
+case S a 0 -> S
+case I a 1 -> I
+case S b 0 -> S
+case I b 1 -> I
+case S c 0 -> S
+case I c 1 -> I
+```
+
+You can also nest the Quantifiers:
+
+```js
+let Set { a b c }
+for n in Set
+for m in Set
+case S n m -> S
 ```
 
 The above expands to this:
