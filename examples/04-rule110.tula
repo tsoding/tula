@@ -9,8 +9,8 @@ for a b   in Cells case (I a)   b b -> (I a b)
 for a b c in Cells case (I a b) c c <- (R a b c)
 for a b   in Cells case (I a b) & & .  Print
 
-case Print & & ! Reset1
-case Reset1 & & <- Reset
+case Print  & & !  Skip
+case Skip   & & <- Reset
 for a in Cells case Reset a a <- Reset
 case Reset & & -> I
 
