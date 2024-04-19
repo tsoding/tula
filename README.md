@@ -92,7 +92,7 @@ for n in Set {
 
 The above expands to:
 
-```
+```js
 case S a 0 -> S
 case I a 1 -> I
 case S b 0 -> S
