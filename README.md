@@ -27,7 +27,7 @@ Simple program that increments a binary number (least significant bits come firs
 
 ```js
 // When in the state `Inc` and read `0`, replace it with `1` move the head 
-// to the right and switch to the state `Halt` which will halt the program.
+// to the right and switch to the state `Halt` which halts the program.
 case Inc 0 1 -> Halt
 
 // When in the state `Inc` and read `1`, replace it with `0` move the head
