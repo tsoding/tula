@@ -2,7 +2,7 @@
 
 **Tu**ring **La**nguage. An Esoteric Programming Language based on [Turing Machine](https://en.wikipedia.org/wiki/Turing_machine) extended with [Set Theory](https://en.wikipedia.org/wiki/Set_theory) and [S-expressions](https://en.wikipedia.org/wiki/S-expression).
 
-*The language currently is in development. So the Source Code is not available yet. The development is happening at https://twitch.tv/tsoding The source code will be available as soon as I feel that the project is ready. Also I'll be making a detailed video about this language on my YouTube channel https://youtube.com/@Tsoding*
+*The Language currently is in Development. So the Source Code is not available yet. The Development is happening at https://twitch.tv/tsoding The Source Code will be available as soon as I feel like the project is ready. Also I'll be making a detailed Video about this Language on my YouTube channel https://youtube.com/@Tsoding*
 
 ## Base Syntax
 
@@ -26,8 +26,17 @@ case <State> <Read> <Write> <Step> <Next>
 Simple program that increments a binary number (least significant bits come first):
 
 ```js
+// When in the state `Inc` and read `0`, replace it with `1` move the head 
+// to the right and switch to the state `Halt` which will halt the program.
 case Inc 0 1 -> Halt
+
+// When in the state `Inc` and read `1`, replace it with `0` move the head
+// to the right and keep staying in the state `Inc` effectively looping over
+// the tape
 case Inc 1 0 -> Inc
+
+// Start the program from the state `Inc` with the tape `{ 1 1 0 1 }` and print
+// the tape on each state change
 trace Inc { 1 1 0 1 }
 ```
 
@@ -46,15 +55,31 @@ Halt: 0 0 1 1
 
 ## S-expressions
 
-Symbols in the language could be also S-expressions. So you can have a Tape that consists of sequence of pairs of numbers:
+Symbols in the language could be also [S-expressions](https://en.wikipedia.org/wiki/S-expression). So you can have a Tape that consists of pairs of numbers:
 
 ``` js
 { (1 2) (2 3) (3 4) & }
 ```
 
+There is no particular reason for using S-expressions specifically in this language. They are just easy to parse.
+
 ## Sets and Universal Quantification
 
-Tula supports defining Sets (which are collections of S-expression) and using [Universal Quantification](https://en.wikipedia.org/wiki/Universal_quantification) on those Sets to generate rules automatically.
+Tula supports defining Sets (which are collections of S-expression) and using [Universal Quantification](https://en.wikipedia.org/wiki/Universal_quantification) on those Sets to generate Rules automatically.
+
+```js
+let Set { a b c d }
+for n in Set case S n 0 -> S
+```
+
+The above program will expand to
+
+```js
+case S a 0 -> S
+case S b 0 -> S
+case S c 0 -> S
+case S d 0 -> S
+```
 
 A simple example that iterates the Tape of Pairs of Numbers and swaps each pair until it reaches the delimiter `&`:
 
