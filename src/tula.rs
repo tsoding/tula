@@ -61,6 +61,30 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
 
 type Scope<'nsa> = HashMap<Symbol<'nsa>, Symbol<'nsa>>;
 
+fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Sexpr<'_>) -> Result<bool> {
+    if let Some(set_values) = program.sets.get(set) {
+        Ok(set_values.contains(value))
+    } else {
+        match set.name {
+            "Integer" => {
+                match value {
+                    Sexpr::Atom{name: symbol} => {
+                        match symbol.name.parse::<i32>() {
+                            Ok(_) => Ok(true),
+                            Err(_) => Ok(false),
+                        }
+                    }
+                    Sexpr::List{..} => Ok(false),
+                }
+            }
+            _ => {
+                eprintln!("{loc}: ERROR: unknown set {set}", loc = set.loc);
+                Err(())
+            }
+        }
+    }
+}
+
 impl<'nsa> Statement<'nsa> {
     fn type_check_case(&self, program: &Program<'nsa>, state: &Sexpr<'nsa>, read: &Sexpr<'nsa>, scope: &mut Scope<'nsa>) -> Result<Option<(Sexpr<'nsa>, Sexpr<'nsa>, Sexpr<'nsa>)>> {
         match self {
@@ -89,17 +113,12 @@ impl<'nsa> Statement<'nsa> {
                 let mut next  = case.next.clone();
                 for (var, set) in scope.iter() {
                     if let Some(value) = bindings.get(var) {
-                        if let Some(set_values) = program.sets.get(set) {
-                            if set_values.contains(value) {
-                                write = write.substitute(*var, value.clone());
-                                step = step.substitute(*var, value.clone());
-                                next = next.substitute(*var, value.clone());
-                            } else {
-                                return Ok(None)
-                            }
+                        if set_contains_value(program, set, value)? {
+                            write = write.substitute(*var, value.clone());
+                            step = step.substitute(*var, value.clone());
+                            next = next.substitute(*var, value.clone());
                         } else {
-                            eprintln!("{loc}: ERROR: unknown set {set}", loc = set.loc);
-                            return Err(());
+                            return Ok(None)
                         }
                     } else {
                         if let Some(symbol) = case.write.find_symbol(var)
@@ -152,8 +171,16 @@ impl<'nsa> Statement<'nsa> {
                     }
                     Ok(())
                 } else {
-                    eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
-                    Err(())
+                    match set.name {
+                        "Integer" => {
+                            eprintln!("{loc}: ERROR: cannot expand infinite set {set}", loc = set.loc);
+                            Err(())
+                        }
+                        _ => {
+                            eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
+                            Err(())
+                        }
+                    }
                 }
             }
             Statement::Block{statements} => {

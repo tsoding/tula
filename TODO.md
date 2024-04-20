@@ -28,3 +28,6 @@
   - It should basically get rid of all the for loops.
 - [ ] Case matching based on type checking instead of literal symbol
       substitution.
+- [ ] Lambda Calc interpreter
+- [ ] Universal Turing Machine
+- [ ] Brainfuck Interpreter
