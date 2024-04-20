@@ -119,7 +119,8 @@ impl<'nsa> Statement<'nsa> {
                             eprintln!("{loc}: NOTE: or here", loc = case.read.loc());
                             return Err(())
                         } else {
-                            eprintln!("{loc}: WARNING: unused variable {var}", loc = var.loc);
+                            eprintln!("{loc}: ERROR: unused variable {var}", loc = var.loc);
+                            return Err(())
                         }
                     }
                 }
