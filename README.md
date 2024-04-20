@@ -107,28 +107,29 @@ You can also nest the Quantifiers:
 let Set { a b c }
 for n in Set
 for m in Set
-case S n m -> S
+case (S n) m 0 -> S
 ```
 
 The above expands to this:
 
 ```js
-case S a a -> S
-case S a b -> S
-case S a c -> S
-case S b a -> S
-case S b b -> S
-case S b c -> S
-case S c a -> S
-case S c b -> S
-case S c c -> S
+case (S a) a a -> S
+case (S a) b a -> S
+case (S a) c a -> S
+case (S b) a b -> S
+case (S b) b b -> S
+case (S b) c b -> S
+case (S c) a c -> S
+case (S c) b c -> S
+case (S c) c c -> S
 ```
 
 Nested Quantifiers that iterate over the same set can be collapsed like so:
 
 ```js
 let Set { a b c }
-for n m in Set case S n m -> S
+for n m in Set
+case (S n) m 0 -> S
 ```
 
 ### Example
