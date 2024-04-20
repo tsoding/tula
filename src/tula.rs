@@ -89,14 +89,6 @@ impl<'nsa> Statement<'nsa> {
     fn type_check_case(&self, program: &Program<'nsa>, state: &Sexpr<'nsa>, read: &Sexpr<'nsa>, scope: &mut Scope<'nsa>) -> Result<Option<(Sexpr<'nsa>, Sexpr<'nsa>, Sexpr<'nsa>)>> {
         match self {
             Statement::Case(case) => {
-                // for (name, scope_set) in scope.iter() {
-                //     print!("{name} =>", name = name.name);
-                //     for sexpr in scope_set.iter() {
-                //         print!(" {sexpr}");
-                //     }
-                //     println!()
-                // }
-
                 let mut bindings = HashMap::new();
                 if !case.state.pattern_match(state, Some(scope), &mut bindings) {
                     return Ok(None)
@@ -105,9 +97,6 @@ impl<'nsa> Statement<'nsa> {
                     return Ok(None)
                 }
 
-                // for (name, value) in &bindings {
-                //     println!("{name} => {value}", name = name.name);
-                // }
                 let mut write = case.write.clone();
                 let mut step  = case.step.clone();
                 let mut next  = case.next.clone();
