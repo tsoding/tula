@@ -1,6 +1,5 @@
-use std::fmt;
 use std::iter::Iterator;
-use std::fmt::Write;
+use std::fmt::{self, Write};
 use std::hash::{Hash, Hasher};
 use super::Result;
 
@@ -17,6 +16,12 @@ pub struct Loc<'nsa> {
 pub struct Symbol<'nsa> {
     pub name: &'nsa str,
     pub loc: Loc<'nsa>,
+}
+
+impl<'nsa> fmt::Display for Symbol<'nsa> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{name}", name = self.name)
+    }
 }
 
 impl<'nsa> PartialEq for Symbol<'nsa> {

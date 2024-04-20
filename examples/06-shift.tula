@@ -1,0 +1,19 @@
+let Alphabet { 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 }
+
+trace Entry { & 1 2 3 4 5 & }
+
+case Entry & & -> Pick
+
+for s in Integer {
+    case Pick s s -> (Pick s)
+    case (Pick s) & & <- (Finish s)
+    for _ in Integer case (Finish s) _ s -> Halt
+}
+
+for s t in Integer {
+    case (Pick s) t t <- (Place s t)
+    for _ in Integer {
+        case (Place s t) _ t -> (Skip s)
+    }
+    case (Skip s) t t -> (Pick s)
+}

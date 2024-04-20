@@ -34,6 +34,19 @@ impl<'nsa> fmt::Display for Sexpr<'nsa> {
 }
 
 impl<'nsa> Sexpr<'nsa> {
+    pub fn find_symbol(&self, symbol: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
+        match self {
+            Self::Atom{name} => if name == symbol {
+                Some(name)
+            } else {
+                None
+            }
+            Self::List{items, ..} => {
+                items.iter().find_map(|item| item.find_symbol(symbol))
+            }
+        }
+    }
+
     pub fn atom_name(&self) -> Option<Symbol<'nsa>> {
         match self {
             &Self::Atom{name} => Some(name),
