@@ -270,19 +270,30 @@ impl<'nsa> Machine<'nsa> {
     fn trace(&self) {
         let mut buffer = String::new();
         let _ = write!(&mut buffer, "{state}: ", state = self.state);
-        let mut head = 0;
+        let mut head_begin = 0;
+        let mut head_end = 0;
         for (i, sexpr) in self.tape.iter().enumerate() {
-            if i == self.head {
-                head = buffer.len();
+            if i > 0 {
+                let _ = write!(&mut buffer, " ");
             }
-            let _ = write!(&mut buffer, "{sexpr} ");
+            if i == self.head {
+                head_begin = buffer.len();
+            }
+            let _ = write!(&mut buffer, "{sexpr}");
+            if i == self.head {
+                head_end = buffer.len();
+            }
         }
         println!("{buffer}");
         // TODO: use the field width formating magic or something like that
-        for _ in 0..head {
+        for _ in 0..head_begin {
             print!(" ");
         }
-        println!("^");
+        print!("^");
+        for _ in head_begin+1..head_end {
+            print!("~");
+        }
+        println!();
     }
 }
 
