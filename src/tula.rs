@@ -112,12 +112,9 @@ impl<'nsa> Statement<'nsa> {
                 let mut step  = case.step.clone();
                 let mut next  = case.next.clone();
                 for (name, value) in &bindings {
-                    if let Some(scope_set) = scope.get(name) {
-                        if !scope_set.contains(value) {
-                            return Ok(None)
-                        }
-                    } else {
-                        unreachable!("Variable is never gonna get into bindings if it's not in the scope");
+                    let scope_set = scope.get(name).expect("Variable is never gonna get into bindings if it's not in the scope");
+                    if !scope_set.contains(value) {
+                        return Ok(None)
                     }
                     write = write.substitute(*name, value.clone());
                     step = step.substitute(*name, value.clone());
