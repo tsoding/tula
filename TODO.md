@@ -19,13 +19,19 @@
       substitution.
 - [ ] Type check cases before execusion
 - [ ] Arithmetic operations on values from Integer set
+- [ ] Sets of sets
+  ```tula
+  for s in Sets
+  for a in s
+  ```
 
 # Examples
 
 - [ ] Fib
-- [ ] Lambda Calc interpreter
-- [ ] Universal Turing Machine
+- [ ] Reverse string
 - [ ] Brainfuck Interpreter
+- [ ] Universal Turing Machine
+- [ ] Lambda Calc interpreter
 
 # Low Priority
 
