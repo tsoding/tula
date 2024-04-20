@@ -54,28 +54,6 @@ impl<'nsa> Sexpr<'nsa> {
         }
     }
 
-    pub fn matches(&self, other: &Sexpr<'nsa>) -> bool {
-        match (self, other) {
-            (Self::Atom{name: name1}, Self::Atom{name: name2}) => {
-                name1.name == name2.name
-            }
-            (Self::List{items: items1, ..}, Self::List{items: items2, ..}) => {
-                if items1.len() != items2.len() {
-                    return false
-                }
-
-                for (a, b) in items1.iter().zip(items2.iter()) {
-                    if !a.matches(b) {
-                        return false
-                    }
-                }
-
-                true
-            }
-            _ => false
-        }
-    }
-
     pub fn substitute(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Sexpr<'nsa> {
         match self {
             Self::Atom{name} => {

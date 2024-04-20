@@ -218,39 +218,6 @@ impl<'nsa> Statement<'nsa> {
             }
         }
     }
-
-    fn match_state(&self, program: &Program<'nsa>, state: &Sexpr<'nsa>, read: &Sexpr<'nsa>) -> Result<Option<(Sexpr<'nsa>, Sexpr<'nsa>, Sexpr<'nsa>)>> {
-        match self {
-            Statement::Case(case) => {
-                if case.state.matches(state) && case.read.matches(read) {
-                    Ok(Some((case.write.clone(), case.step.clone(), case.next.clone())))
-                } else {
-                    Ok(None)
-                }
-            }
-            Statement::Block{statements} => {
-                for statement in statements {
-                    if let Some(triple) = statement.match_state(program, state, read)? {
-                        return Ok(Some(triple));
-                    }
-                }
-                Ok(None)
-            }
-            Statement::For{var, set, body} => {
-                if let Some(sexprs) = program.sets.get(set) {
-                    for sexpr in sexprs {
-                        if let Some(triple) = body.substitute(*var, sexpr.clone()).match_state(program, state, read)? {
-                            return Ok(Some(triple));
-                        }
-                    }
-                    Ok(None)
-                } else {
-                    eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
-                    Err(())
-                }
-            }
-        }
-    }
 }
 
 #[derive(Debug)]
