@@ -286,8 +286,8 @@ impl<'nsa> Machine<'nsa> {
     }
 }
 
-fn parse_seq_of_sexprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Sexpr<'nsa>>> {
-    let _ = lexer.expect_symbols(&["{"])?;
+fn parse_seq_of_sexprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Sexpr<'nsa>>)> {
+    let open_curly = lexer.expect_symbols(&["{"])?;
     let mut seq = vec![];
     while let Some(symbol) = lexer.peek_symbol() {
         if symbol.name == "}" {
@@ -296,12 +296,13 @@ fn parse_seq_of_sexprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Vec<Sexpr<'nsa>>
         seq.push(Sexpr::parse(lexer)?);
     }
     let _ = lexer.expect_symbols(&["}"])?;
-    Ok(seq)
+    Ok((open_curly, seq))
 }
 
 struct Run<'nsa> {
     keyword: Symbol<'nsa>,
     state: Sexpr<'nsa>,
+    open_curly_of_tape: Symbol<'nsa>,
     tape: Vec<Sexpr<'nsa>>,
     trace: bool,
 }
@@ -364,9 +365,9 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
 fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
     let keyword = lexer.expect_symbols(&["run", "trace"])?;
     let state = Sexpr::parse(lexer)?;
-    let tape = parse_seq_of_sexprs(lexer)?;
+    let (open_curly_of_tape, tape) = parse_seq_of_sexprs(lexer)?;
     let trace = keyword.name == "trace";
-    Ok(Run {keyword, state, tape, trace})
+    Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
 }
 
 fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
@@ -386,7 +387,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
                     eprintln!("{loc}: ERROR: redefinition of set {name}", loc = name.loc);
                     return Err(())
                 }
-                let set = parse_seq_of_sexprs(lexer)?;
+                let (_open_curly, set) = parse_seq_of_sexprs(lexer)?;
                 program.sets.insert(name, set);
             }
             _ => {
@@ -426,7 +427,7 @@ const COMMANDS: &[Command] = &[
     Command {
         name: "run",
         description: "Run the Tula Program",
-        signature: "<input.tula> <input.tape>",
+        signature: "<input.tula>",
         run: |command, program_name, mut args| {
             let tula_path;
             if let Some(path) = args.next() {
@@ -448,7 +449,7 @@ const COMMANDS: &[Command] = &[
                 if let Some(symbol) = run.tape.last().cloned() {
                     tape_default = symbol;
                 } else {
-                    eprintln!("ERROR: The tape file may not be empty. I must contain at least one symbol so we know what to fill the infinite tape with");
+                    eprintln!("{loc}: ERROR: The tape may not be empty. It must contain at least one symbol so we know what to fill it with to the right indefinitely", loc = run.open_curly_of_tape.loc);
                     return Err(());
                 }
                 let mut machine = Machine {
