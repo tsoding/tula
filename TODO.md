@@ -13,7 +13,23 @@
 - [x] Emacs mode
   - If we gonna introduce `run` command, this is already a custom
     keyword that is not present in js.
-- [x] Pattern matching in `for`-loops
+- [x] Command to expand all the rules.
+  - It should basically get rid of all the for loops.
+- [x] Case matching based on type checking instead of literal symbol
+      substitution.
+- [ ] Type check cases before execusion
+- [ ] Arithmetic operations on values from Integer set
+
+# Examples
+
+- [ ] Fib
+- [ ] Lambda Calc interpreter
+- [ ] Universal Turing Machine
+- [ ] Brainfuck Interpreter
+
+# Low Priority
+
+- [ ] Pattern matching in `for`-loops
   ```tula
   let Invert { (0 1) (1 0) }
   for (a b) in Invert
@@ -24,10 +40,3 @@
   case I 0 1 -> I
   case I 1 0 -> I
   ```
-- [x] Command to expand all the rules.
-  - It should basically get rid of all the for loops.
-- [ ] Case matching based on type checking instead of literal symbol
-      substitution.
-- [ ] Lambda Calc interpreter
-- [ ] Universal Turing Machine
-- [ ] Brainfuck Interpreter
