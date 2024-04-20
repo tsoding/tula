@@ -203,5 +203,5 @@ It is actually impossible to expand the example because `Integer` is
 just too big. But the Interpreter still prints the trace
 instantaneously because internally it does not actually generate any
 cases. It treats the Sets as Types and performs an efficient Type
-Checking and Pattern Matching infer the `<Write>`, `<Step>` and
+Checking and Pattern Matching to infer the `<Write>`, `<Step>` and
 `<Next>` based on the current state of the Machine.
