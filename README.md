@@ -169,3 +169,39 @@ Halt: (2 1) (3 2) (4 3) & &
 ```
 
 The tape is infinite to the right (but not the left!) and filled with the last symbol. In the example above it's `&`.
+
+## Infinite Sets
+
+Tula supports a special "magical" set `Integer` that is infinite
+(actually not, it's `i32`, but you get the point):
+
+```js
+for a b in Integer
+case Swap (a b) (b a) -> Swap
+
+case Swap & & -> Halt
+
+trace Swap { (69 420) (1337 7331) (42 37) & }
+```
+
+The trace of the above program:
+
+```
+Swap: (69 420) (1337 7331) (42 37) &
+      ^
+Swap: (420 69) (1337 7331) (42 37) &
+               ^
+Swap: (420 69) (7331 1337) (42 37) &
+                           ^
+Swap: (420 69) (7331 1337) (37 42) &
+                                   ^
+Halt: (420 69) (7331 1337) (37 42) & &
+                                     ^
+```
+
+It is actually impossible to expand the example because `Integer` is
+just too big. But the Interpreter still prints the trace
+instantaneously because internally it does not actually generate any
+cases. It treats the Sets as Types and performs an efficient Type
+Checking and Pattern Matching infer the `<Write>`, `<Step>` and
+`<Next>` based on the current state of the Machine.
