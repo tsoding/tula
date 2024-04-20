@@ -1,17 +1,13 @@
-trace Entry { & 1 2 3 4 5 & }
+let Callback { Halt Shift }
 
-case Entry & & -> Pick
+run (Print Shift) { & 69 420 1337 1 2 3 & }
 
-for s in Integer {
-    case Pick s s -> (Pick s)
-    case (Pick s) & & <- (Finish s)
-    for _ in Integer case (Finish s) _ s -> Halt
-}
+for c in Callback case (Print c) & & ! c
+case Shift & & -> Pick
 
-for s t in Integer {
-    case (Pick s) t t <- (Place s t)
-    for _ in Integer {
-        case (Place s t) _ t -> (Skip s)
-    }
-    case (Skip s) t t -> (Pick s)
-}
+for s     in Integer case Pick        s s -> (Pick s)
+for s t   in Integer case (Pick s)    t t <- (Place s t)
+for s t _ in Integer case (Place s t) _ t -> (Skip s)
+for s t   in Integer case (Skip s)    t t -> (Pick s)
+for s     in Integer case (Pick s)    & & <- (Finish s)
+for s _   in Integer case (Finish s)  _ s -> (Print Halt)
