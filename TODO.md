@@ -17,6 +17,7 @@
   - It should basically get rid of all the for loops.
 - [x] Case matching based on type checking instead of literal symbol
       substitution.
+- [ ] `--no-sexpr` flag for `expand` subcommand
 - [ ] Type check cases before execusion
 - [ ] Arithmetic operations on values from Integer set
 - [ ] Sets of sets
