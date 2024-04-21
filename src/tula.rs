@@ -155,9 +155,9 @@ impl<'nsa> Statement<'nsa> {
                 Ok(())
             },
             Statement::For{var, set, body} => {
-                if let Some(sexprs) = program.sets.get(set) {
-                    for sexpr in sexprs {
-                        body.substitute(*var, sexpr.clone()).expand(program)?;
+                if let Some(exprs) = program.sets.get(set) {
+                    for expr in exprs {
+                        body.substitute(*var, expr.clone()).expand(program)?;
                     }
                     Ok(())
                 } else {
@@ -182,24 +182,24 @@ impl<'nsa> Statement<'nsa> {
         }
     }
 
-    fn substitute(&self, var: Symbol<'nsa>, sexpr: Expr<'nsa>) -> Statement<'nsa> {
+    fn substitute(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Statement<'nsa> {
         match self {
             Statement::Block{statements} => {
                 Statement::Block {
-                    statements: statements.iter().map(|s| s.substitute(var, sexpr.clone())).collect()
+                    statements: statements.iter().map(|s| s.substitute(var, expr.clone())).collect()
                 }
             }
             Statement::Case(Case{state, read, write, step, next}) => {
-                let state = state.substitute(var, sexpr.clone());
-                let read  = read.substitute(var, sexpr.clone());
-                let write = write.substitute(var, sexpr.clone());
-                let step  = step.substitute(var, sexpr.clone());
-                let next  = next.substitute(var, sexpr.clone());
+                let state = state.substitute(var, expr.clone());
+                let read  = read.substitute(var, expr.clone());
+                let write = write.substitute(var, expr.clone());
+                let step  = step.substitute(var, expr.clone());
+                let next  = next.substitute(var, expr.clone());
                 Statement::Case(Case{state, read, write, step, next})
             }
             Statement::For{var: for_var, set: for_set, body} => {
                 // TODO: allow subsituting the sets
-                let body = Box::new(body.substitute(var, sexpr));
+                let body = Box::new(body.substitute(var, expr));
                 Statement::For{
                     var: for_var.clone(),
                     set: *for_set,
@@ -261,8 +261,8 @@ impl<'nsa> Machine<'nsa> {
     }
 
     fn print(&self) {
-        for sexpr in &self.tape {
-            let _ = print!("{sexpr} ");
+        for expr in &self.tape {
+            let _ = print!("{expr} ");
         }
         println!()
     }
@@ -272,14 +272,14 @@ impl<'nsa> Machine<'nsa> {
         let _ = write!(&mut buffer, "{state}: ", state = self.state);
         let mut head_begin = 0;
         let mut head_end = 0;
-        for (i, sexpr) in self.tape.iter().enumerate() {
+        for (i, expr) in self.tape.iter().enumerate() {
             if i > 0 {
                 let _ = write!(&mut buffer, " ");
             }
             if i == self.head {
                 head_begin = buffer.len();
             }
-            let _ = write!(&mut buffer, "{sexpr}");
+            let _ = write!(&mut buffer, "{expr}");
             if i == self.head {
                 head_end = buffer.len();
             }
@@ -297,7 +297,7 @@ impl<'nsa> Machine<'nsa> {
     }
 }
 
-fn parse_seq_of_sexprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Expr<'nsa>>)> {
+fn parse_seq_of_exprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Expr<'nsa>>)> {
     let open_curly = lexer.expect_symbols(&["{"])?;
     let mut seq = vec![];
     while let Some(symbol) = lexer.peek_symbol() {
@@ -376,7 +376,7 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
 fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
     let keyword = lexer.expect_symbols(&["run", "trace"])?;
     let state = Expr::parse(lexer)?;
-    let (open_curly_of_tape, tape) = parse_seq_of_sexprs(lexer)?;
+    let (open_curly_of_tape, tape) = parse_seq_of_exprs(lexer)?;
     let trace = keyword.name == "trace";
     Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
 }
@@ -398,7 +398,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
                     eprintln!("{loc}: ERROR: redefinition of set {name}", loc = name.loc);
                     return Err(())
                 }
-                let (_open_curly, set) = parse_seq_of_sexprs(lexer)?;
+                let (_open_curly, set) = parse_seq_of_exprs(lexer)?;
                 program.sets.insert(name, set);
             }
             _ => {
@@ -507,7 +507,7 @@ const COMMANDS: &[Command] = &[
         },
     },
     Command {
-        name: "sexpr",
+        name: "expr",
         signature: "<input-file>",
         description: "Parse the S-expression from the file to test the behavior of the Parser",
         run: |command, program_name, mut args| {
@@ -525,8 +525,8 @@ const COMMANDS: &[Command] = &[
 
             let mut lexer = Lexer::new(&source, &source_path);
             while lexer.peek_symbol().is_some() {
-                let sexpr = Expr::parse(&mut lexer)?;
-                println!("{loc}: {sexpr}", loc = sexpr.loc());
+                let expr = Expr::parse(&mut lexer)?;
+                println!("{loc}: {expr}", loc = expr.loc());
             }
 
             Ok(())
@@ -562,11 +562,11 @@ const COMMANDS: &[Command] = &[
                 }
                 print!(" {entry}", entry = run.state);
                 print!(" {{");
-                for (i, sexpr) in run.tape.iter().enumerate() {
+                for (i, expr) in run.tape.iter().enumerate() {
                     if i > 0 {
                         print!(" ");
                     }
-                    print!("{sexpr}");
+                    print!("{expr}");
                 }
                 print!("}}");
             }

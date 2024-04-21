@@ -8,6 +8,10 @@ pub enum Expr<'nsa> {
     Atom {
         symbol: Symbol<'nsa>,
     },
+    // Integer {
+    //     value: i32,
+    //     symbol: Symbol<'nsa>,
+    // },
     List {
         open_paren: Symbol<'nsa>,
         items: Vec<Expr<'nsa>>
@@ -54,18 +58,18 @@ impl<'nsa> Expr<'nsa> {
         }
     }
 
-    pub fn substitute(&self, var: Symbol<'nsa>, sexpr: Expr<'nsa>) -> Expr<'nsa> {
+    pub fn substitute(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Expr<'nsa> {
         match self {
             Self::Atom{symbol} => {
                 if symbol.name == var.name {
-                    sexpr
+                    expr
                 } else {
                     self.clone()
                 }
             }
 
             Self::List{open_paren, items} => {
-                let items = items.iter().map(|item| item.substitute(var, sexpr.clone())).collect();
+                let items = items.iter().map(|item| item.substitute(var, expr.clone())).collect();
                 Self::List{open_paren: *open_paren, items}
             }
         }
