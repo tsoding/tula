@@ -68,7 +68,7 @@ fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Expr<'_>)
         match set.name {
             "Integer" => {
                 match value {
-                    Expr::Atom{name: symbol} => {
+                    Expr::Atom{symbol} => {
                         match symbol.name.parse::<i32>() {
                             Ok(_) => Ok(true),
                             Err(_) => Ok(false),
@@ -226,7 +226,7 @@ impl<'nsa> Machine<'nsa> {
             let mut scope = Scope::new();
             if let Some((write, step, next)) = statement.type_check_case(program, &self.state, &self.tape[self.head], &mut scope)? {
                 self.tape[self.head] = write;
-                if let Some(step) = step.atom_name() {
+                if let Some(step) = step.atom_symbol() {
                     match step.name {
                         "<-" => {
                             if self.head == 0 {

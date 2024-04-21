@@ -6,7 +6,7 @@ use super::{Result, Scope};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'nsa> {
     Atom {
-        name: Symbol<'nsa>,
+        symbol: Symbol<'nsa>,
     },
     List {
         open_paren: Symbol<'nsa>,
@@ -17,7 +17,7 @@ pub enum Expr<'nsa> {
 impl<'nsa> fmt::Display for Expr<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Atom{name: Symbol{name, ..}} => write!(f, "{name}"),
+            Self::Atom{symbol: Symbol{name, ..}} => write!(f, "{name}"),
             Self::List{items, ..} => {
                 write!(f, "(")?;
                 for (i, item) in items.iter().enumerate() {
@@ -34,30 +34,30 @@ impl<'nsa> fmt::Display for Expr<'nsa> {
 }
 
 impl<'nsa> Expr<'nsa> {
-    pub fn find_symbol(&self, symbol: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
+    pub fn find_symbol(&self, needle: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
         match self {
-            Self::Atom{name} => if name == symbol {
-                Some(name)
+            Self::Atom{symbol} => if symbol == needle {
+                Some(symbol)
             } else {
                 None
             }
             Self::List{items, ..} => {
-                items.iter().find_map(|item| item.find_symbol(symbol))
+                items.iter().find_map(|item| item.find_symbol(needle))
             }
         }
     }
 
-    pub fn atom_name(&self) -> Option<Symbol<'nsa>> {
+    pub fn atom_symbol(&self) -> Option<Symbol<'nsa>> {
         match self {
-            &Self::Atom{name} => Some(name),
+            &Self::Atom{symbol} => Some(symbol),
             Self::List{..} => None,
         }
     }
 
     pub fn substitute(&self, var: Symbol<'nsa>, sexpr: Expr<'nsa>) -> Expr<'nsa> {
         match self {
-            Self::Atom{name} => {
-                if name.name == var.name {
+            Self::Atom{symbol} => {
+                if symbol.name == var.name {
                     sexpr
                 } else {
                     self.clone()
@@ -72,8 +72,8 @@ impl<'nsa> Expr<'nsa> {
     }
 
     pub fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
-        let symbol1 = lexer.parse_symbol()?;
-        match symbol1.name {
+        let symbol = lexer.parse_symbol()?;
+        match symbol.name {
             "(" => {
                 let mut items = vec![];
                 while let Some(symbol2) = lexer.peek_symbol() {
@@ -84,37 +84,37 @@ impl<'nsa> Expr<'nsa> {
                 }
                 let _ = lexer.expect_symbols(&[")"])?;
                 Ok(Self::List {
-                    open_paren: symbol1,
+                    open_paren: symbol,
                     items,
                 })
             }
-            _ => Ok(Self::Atom{name: symbol1}),
+            _ => Ok(Self::Atom{symbol}),
         }
     }
 
     pub fn loc(&self) -> &Loc<'nsa> {
         match self {
-            Self::Atom{name} => &name.loc,
+            Self::Atom{symbol} => &symbol.loc,
             Self::List{open_paren, ..} => &open_paren.loc,
         }
     }
 
     pub fn pattern_match(&self, value: &Expr<'nsa>, scope: Option<&Scope<'nsa>>, bindings: &mut HashMap<Symbol<'nsa>, Expr<'nsa>>) -> bool {
         match (self, value) {
-            (Expr::Atom{name}, _) => {
+            (Expr::Atom{symbol}, _) => {
                 if let Some(scope) = scope {
-                    if scope.contains_key(name) {
+                    if scope.contains_key(symbol) {
                         // TODO: check if the name already exists in the bindings
-                        bindings.insert(*name, value.clone());
+                        bindings.insert(*symbol, value.clone());
                         true
                     } else {
                         match value {
-                            Expr::Atom{name: name2} => name == name2,
+                            Expr::Atom{symbol: symbol2} => symbol == symbol2,
                             _ => false,
                         }
                     }
                 } else {
-                    bindings.insert(*name, value.clone());
+                    bindings.insert(*symbol, value.clone());
                     true
                 }
             }
