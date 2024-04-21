@@ -4,17 +4,17 @@ use std::collections::HashMap;
 use super::{Result, Scope};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Sexpr<'nsa> {
+pub enum Expr<'nsa> {
     Atom {
         name: Symbol<'nsa>,
     },
     List {
         open_paren: Symbol<'nsa>,
-        items: Vec<Sexpr<'nsa>>
+        items: Vec<Expr<'nsa>>
     },
 }
 
-impl<'nsa> fmt::Display for Sexpr<'nsa> {
+impl<'nsa> fmt::Display for Expr<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Atom{name: Symbol{name, ..}} => write!(f, "{name}"),
@@ -33,7 +33,7 @@ impl<'nsa> fmt::Display for Sexpr<'nsa> {
     }
 }
 
-impl<'nsa> Sexpr<'nsa> {
+impl<'nsa> Expr<'nsa> {
     pub fn find_symbol(&self, symbol: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
         match self {
             Self::Atom{name} => if name == symbol {
@@ -54,7 +54,7 @@ impl<'nsa> Sexpr<'nsa> {
         }
     }
 
-    pub fn substitute(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Sexpr<'nsa> {
+    pub fn substitute(&self, var: Symbol<'nsa>, sexpr: Expr<'nsa>) -> Expr<'nsa> {
         match self {
             Self::Atom{name} => {
                 if name.name == var.name {
@@ -80,7 +80,7 @@ impl<'nsa> Sexpr<'nsa> {
                     if symbol2.name == ")" {
                         break;
                     }
-                    items.push(Sexpr::parse(lexer)?);
+                    items.push(Expr::parse(lexer)?);
                 }
                 let _ = lexer.expect_symbols(&[")"])?;
                 Ok(Self::List {
@@ -99,9 +99,9 @@ impl<'nsa> Sexpr<'nsa> {
         }
     }
 
-    pub fn pattern_match(&self, value: &Sexpr<'nsa>, scope: Option<&Scope<'nsa>>, bindings: &mut HashMap<Symbol<'nsa>, Sexpr<'nsa>>) -> bool {
+    pub fn pattern_match(&self, value: &Expr<'nsa>, scope: Option<&Scope<'nsa>>, bindings: &mut HashMap<Symbol<'nsa>, Expr<'nsa>>) -> bool {
         match (self, value) {
-            (Sexpr::Atom{name}, _) => {
+            (Expr::Atom{name}, _) => {
                 if let Some(scope) = scope {
                     if scope.contains_key(name) {
                         // TODO: check if the name already exists in the bindings
@@ -109,7 +109,7 @@ impl<'nsa> Sexpr<'nsa> {
                         true
                     } else {
                         match value {
-                            Sexpr::Atom{name: name2} => name == name2,
+                            Expr::Atom{name: name2} => name == name2,
                             _ => false,
                         }
                     }
@@ -118,7 +118,7 @@ impl<'nsa> Sexpr<'nsa> {
                     true
                 }
             }
-            (Sexpr::List{items: pattern_items, ..}, Sexpr::List{items: value_items, ..}) => {
+            (Expr::List{items: pattern_items, ..}, Expr::List{items: value_items, ..}) => {
                 if pattern_items.len() == value_items.len() {
                     for (a, b) in pattern_items.iter().zip(value_items.iter()) {
                         if !a.pattern_match(b, scope, bindings) {

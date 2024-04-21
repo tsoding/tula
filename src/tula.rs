@@ -1,5 +1,5 @@
 mod lexer;
-mod sexpr;
+mod expr;
 
 use std::fs;
 use std::result;
@@ -9,17 +9,17 @@ use std::process::ExitCode;
 use std::collections::HashMap;
 
 use lexer::*;
-use sexpr::*;
+use expr::*;
 
 type Result<T> = result::Result<T, ()>;
 
 #[derive(Debug, Clone)]
 struct Case<'nsa> {
-    state: Sexpr<'nsa>,
-    read: Sexpr<'nsa>,
-    write: Sexpr<'nsa>,
-    step: Sexpr<'nsa>,
-    next: Sexpr<'nsa>,
+    state: Expr<'nsa>,
+    read: Expr<'nsa>,
+    write: Expr<'nsa>,
+    step: Expr<'nsa>,
+    next: Expr<'nsa>,
 }
 
 #[derive(Debug, Clone)]
@@ -29,7 +29,7 @@ enum Statement<'nsa> {
         statements: Vec<Statement<'nsa>>
     },
     For {
-        // TODO: Support Sexprs for `var` and `set` in for-loops
+        // TODO: Support Exprs for `var` and `set` in for-loops
         var: Symbol<'nsa>,
         set: Symbol<'nsa>,
         body: Box<Statement<'nsa>>,
@@ -61,20 +61,20 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
 
 type Scope<'nsa> = HashMap<Symbol<'nsa>, Symbol<'nsa>>;
 
-fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Sexpr<'_>) -> Result<bool> {
+fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Expr<'_>) -> Result<bool> {
     if let Some(set_values) = program.sets.get(set) {
         Ok(set_values.contains(value))
     } else {
         match set.name {
             "Integer" => {
                 match value {
-                    Sexpr::Atom{name: symbol} => {
+                    Expr::Atom{name: symbol} => {
                         match symbol.name.parse::<i32>() {
                             Ok(_) => Ok(true),
                             Err(_) => Ok(false),
                         }
                     }
-                    Sexpr::List{..} => Ok(false),
+                    Expr::List{..} => Ok(false),
                 }
             }
             _ => {
@@ -86,7 +86,7 @@ fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Sexpr<'_>
 }
 
 impl<'nsa> Statement<'nsa> {
-    fn type_check_case(&self, program: &Program<'nsa>, state: &Sexpr<'nsa>, read: &Sexpr<'nsa>, scope: &mut Scope<'nsa>) -> Result<Option<(Sexpr<'nsa>, Sexpr<'nsa>, Sexpr<'nsa>)>> {
+    fn type_check_case(&self, program: &Program<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>, scope: &mut Scope<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
         match self {
             Statement::Case(case) => {
                 let mut bindings = HashMap::new();
@@ -182,7 +182,7 @@ impl<'nsa> Statement<'nsa> {
         }
     }
 
-    fn substitute(&self, var: Symbol<'nsa>, sexpr: Sexpr<'nsa>) -> Statement<'nsa> {
+    fn substitute(&self, var: Symbol<'nsa>, sexpr: Expr<'nsa>) -> Statement<'nsa> {
         match self {
             Statement::Block{statements} => {
                 Statement::Block {
@@ -212,9 +212,9 @@ impl<'nsa> Statement<'nsa> {
 
 #[derive(Debug)]
 struct Machine<'nsa> {
-    state: Sexpr<'nsa>,
-    tape: Vec<Sexpr<'nsa>>,
-    tape_default: Sexpr<'nsa>,
+    state: Expr<'nsa>,
+    tape: Vec<Expr<'nsa>>,
+    tape_default: Expr<'nsa>,
     head: usize,
     halt: bool,
 }
@@ -297,14 +297,14 @@ impl<'nsa> Machine<'nsa> {
     }
 }
 
-fn parse_seq_of_sexprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Sexpr<'nsa>>)> {
+fn parse_seq_of_sexprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Expr<'nsa>>)> {
     let open_curly = lexer.expect_symbols(&["{"])?;
     let mut seq = vec![];
     while let Some(symbol) = lexer.peek_symbol() {
         if symbol.name == "}" {
             break;
         }
-        seq.push(Sexpr::parse(lexer)?);
+        seq.push(Expr::parse(lexer)?);
     }
     let _ = lexer.expect_symbols(&["}"])?;
     Ok((open_curly, seq))
@@ -312,25 +312,25 @@ fn parse_seq_of_sexprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, V
 
 struct Run<'nsa> {
     keyword: Symbol<'nsa>,
-    state: Sexpr<'nsa>,
+    state: Expr<'nsa>,
     open_curly_of_tape: Symbol<'nsa>,
-    tape: Vec<Sexpr<'nsa>>,
+    tape: Vec<Expr<'nsa>>,
     trace: bool,
 }
 
 #[derive(Default)]
 struct Program<'nsa> {
     statements: Vec<Statement<'nsa>>,
-    sets: HashMap<Symbol<'nsa>, Vec<Sexpr<'nsa>>>,
+    sets: HashMap<Symbol<'nsa>, Vec<Expr<'nsa>>>,
     runs: Vec<Run<'nsa>>,
 }
 
 fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Case<'nsa>> {
-    let state = Sexpr::parse(lexer)?;
-    let read  = Sexpr::parse(lexer)?;
-    let write = Sexpr::parse(lexer)?;
-    let step  = Sexpr::parse(lexer)?;
-    let next  = Sexpr::parse(lexer)?;
+    let state = Expr::parse(lexer)?;
+    let read  = Expr::parse(lexer)?;
+    let write = Expr::parse(lexer)?;
+    let step  = Expr::parse(lexer)?;
+    let next  = Expr::parse(lexer)?;
     Ok(Case{state, read, write, step, next})
 }
 
@@ -375,7 +375,7 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
 
 fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
     let keyword = lexer.expect_symbols(&["run", "trace"])?;
-    let state = Sexpr::parse(lexer)?;
+    let state = Expr::parse(lexer)?;
     let (open_curly_of_tape, tape) = parse_seq_of_sexprs(lexer)?;
     let trace = keyword.name == "trace";
     Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
@@ -525,7 +525,7 @@ const COMMANDS: &[Command] = &[
 
             let mut lexer = Lexer::new(&source, &source_path);
             while lexer.peek_symbol().is_some() {
-                let sexpr = Sexpr::parse(&mut lexer)?;
+                let sexpr = Expr::parse(&mut lexer)?;
                 println!("{loc}: {sexpr}", loc = sexpr.loc());
             }
 

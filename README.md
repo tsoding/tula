@@ -1,6 +1,6 @@
 # Tula
 
-**Tu**ring **La**nguage. An [Esoteric Programming Language](https://en.wikipedia.org/wiki/Esoteric_programming_language) based on [Turing Machine](https://en.wikipedia.org/wiki/Turing_machine) extended with [Set Theory](https://en.wikipedia.org/wiki/Set_theory) and [S-expressions](https://en.wikipedia.org/wiki/S-expression).
+**Tu**ring **La**nguage. An [Esoteric Programming Language](https://en.wikipedia.org/wiki/Esoteric_programming_language) based on [Turing Machine](https://en.wikipedia.org/wiki/Turing_machine) extended with [Set Theory](https://en.wikipedia.org/wiki/Set_theory) and Compound Expressions.
 
 *The Language is currently in Development. So the Source Code is not available yet. The Development is happening at https://twitch.tv/tsoding The Source Code will be available as soon as I feel like the project is ready. Also I'll be making a detailed Video about this Language on my YouTube channel https://youtube.com/@Tsoding*
 
@@ -53,19 +53,17 @@ Halt: 0 0 1 1
             ^
 ```
 
-## S-expressions
-
-Symbols in the language could be also [S-expressions](https://en.wikipedia.org/wiki/S-expression). So you can have a Tape that consists of pairs of numbers:
+## Compound Expressions
 
 ``` js
 { (1 2) (2 3) (3 4) & }
 ```
 
-There is no particular reason for using S-expressions specifically in this language. They are just easy to parse.
+TBD
 
 ## Sets and Universal Quantification
 
-Tula supports defining Sets (which are collections of S-expression) and using [Universal Quantification](https://en.wikipedia.org/wiki/Universal_quantification) on those Sets to generate Rules automatically.
+Tula supports defining Sets (which are collections of Compound Expressions) and using [Universal Quantification](https://en.wikipedia.org/wiki/Universal_quantification) on those Sets to generate Rules automatically.
 
 ```js
 let Set { a b c }
