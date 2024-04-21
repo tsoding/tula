@@ -26,6 +26,7 @@
   for s in Sets
   for a in s
   ```
+- [ ] Union sets
 
 # Examples
 
