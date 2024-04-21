@@ -217,7 +217,6 @@ struct Machine<'nsa> {
 impl<'nsa> Machine<'nsa> {
     fn next(&mut self, program: &Program<'nsa>) -> Result<()> {
         for statement in program.statements.iter() {
-            // if let Some((write, step, next)) = statement.match_state(program, &self.state, &self.tape[self.head])? {
             let mut scope = Scope::new();
             if let Some((write, step, next)) = statement.type_check_case(program, &self.state, &self.tape[self.head], &mut scope)? {
                 if let Expr::Eval{open_paren, lhs, rhs} = write {
@@ -226,6 +225,8 @@ impl<'nsa> Machine<'nsa> {
                             match *rhs {
                                 Expr::Integer{value: rhs_value, ..} => {
                                     self.tape[self.head] = Expr::Integer {
+                                        // TODO: This makes it impossible to use Expr::Integer as a variable name, because we use the symbol as the variable name.
+                                        //   Maybe we can just forbid using Integers as variable names?
                                         symbol: open_paren,
                                         value: lhs_value + rhs_value,
                                     }
