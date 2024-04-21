@@ -17,9 +17,10 @@
   - It should basically get rid of all the for loops.
 - [x] Case matching based on type checking instead of literal symbol
       substitution.
+- [x] Arithmetic operations on values from Integer set
+- [ ] Error out on the case not using all the variables in the scope
 - [ ] `--no-expr` flag for `expand` subcommand
 - [ ] Type check cases before execusion
-- [ ] Arithmetic operations on values from Integer set
 - [ ] Sets of sets
   ```tula
   for s in Sets
