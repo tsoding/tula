@@ -220,7 +220,30 @@ impl<'nsa> Machine<'nsa> {
             // if let Some((write, step, next)) = statement.match_state(program, &self.state, &self.tape[self.head])? {
             let mut scope = Scope::new();
             if let Some((write, step, next)) = statement.type_check_case(program, &self.state, &self.tape[self.head], &mut scope)? {
-                self.tape[self.head] = write;
+                if let Expr::Eval{open_paren, lhs, rhs} = write {
+                    match *lhs {
+                        Expr::Integer{value: lhs_value, ..} => {
+                            match *rhs {
+                                Expr::Integer{value: rhs_value, ..} => {
+                                    self.tape[self.head] = Expr::Integer {
+                                        symbol: open_paren,
+                                        value: lhs_value + rhs_value,
+                                    }
+                                }
+                                _ => {
+                                    eprintln!("{loc}: ERROR: right hand side value must be an integer", loc = rhs.loc());
+                                    return Err(());
+                                }
+                            }
+                        }
+                        _ => {
+                            eprintln!("{loc}: ERROR: left hand side value must be an integer", loc = lhs.loc());
+                            return Err(());
+                        }
+                    }
+                } else {
+                    self.tape[self.head] = write;
+                }
                 if let Some(step) = step.atom_symbol() {
                     match step.name {
                         "<-" => {

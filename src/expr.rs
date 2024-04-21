@@ -12,6 +12,11 @@ pub enum Expr<'nsa> {
         value: i32,
         symbol: Symbol<'nsa>,
     },
+    Eval {
+        open_paren: Symbol<'nsa>,
+        lhs: Box<Expr<'nsa>>,
+        rhs: Box<Expr<'nsa>>,
+    },
     List {
         open_paren: Symbol<'nsa>,
         items: Vec<Expr<'nsa>>
@@ -21,6 +26,7 @@ pub enum Expr<'nsa> {
 impl<'nsa> fmt::Display for Expr<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Eval{lhs, rhs, ..} => write!(f, "[{lhs} + {rhs}]"),
             Self::Integer{value, ..} => write!(f, "{value}"),
             Self::Atom{symbol: Symbol{name, ..}} => write!(f, "{name}"),
             Self::List{items, ..} => {
@@ -46,6 +52,9 @@ impl<'nsa> Expr<'nsa> {
             } else {
                 None
             }
+            Self::Eval{lhs, rhs, ..} => {
+                lhs.find_symbol(needle).or_else(|| rhs.find_symbol(needle))
+            }
             Self::List{items, ..} => {
                 items.iter().find_map(|item| item.find_symbol(needle))
             }
@@ -55,7 +64,7 @@ impl<'nsa> Expr<'nsa> {
     pub fn atom_symbol(&self) -> Option<Symbol<'nsa>> {
         match self {
             &Self::Atom{symbol} | &Self::Integer{symbol, ..} => Some(symbol),
-            Self::List{..} => None,
+            Self::List{..} | Self::Eval{..} => None,
         }
     }
 
@@ -69,6 +78,12 @@ impl<'nsa> Expr<'nsa> {
                 }
             }
 
+            Self::Eval{open_paren, lhs, rhs} => {
+                let lhs = Box::new(lhs.substitute(var, expr.clone()));
+                let rhs = Box::new(rhs.substitute(var, expr.clone()));
+                Self::Eval{open_paren: *open_paren, lhs, rhs}
+            }
+
             Self::List{open_paren, items} => {
                 let items = items.iter().map(|item| item.substitute(var, expr.clone())).collect();
                 Self::List{open_paren: *open_paren, items}
@@ -76,9 +91,25 @@ impl<'nsa> Expr<'nsa> {
         }
     }
 
+    pub fn from_symbol(symbol: Symbol<'nsa>) -> Self {
+        match symbol.name.parse::<i32>() {
+            Ok(value) => Self::Integer{symbol, value},
+            Err(_) => Self::Atom{symbol},
+        }
+    }
+
     pub fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
         let symbol = lexer.parse_symbol()?;
         match symbol.name {
+            "[" => {
+                let lhs = Box::new(Self::from_symbol(lexer.parse_symbol()?));
+                let _ = lexer.expect_symbols(&["+"])?;
+                let rhs = Box::new(Self::from_symbol(lexer.parse_symbol()?));
+                let _ = lexer.expect_symbols(&["]"])?;
+                Ok(Self::Eval {
+                    lhs, rhs, open_paren: symbol
+                })
+            }
             "(" => {
                 let mut items = vec![];
                 while let Some(symbol2) = lexer.peek_symbol() {
@@ -93,19 +124,14 @@ impl<'nsa> Expr<'nsa> {
                     items,
                 })
             }
-            _ => {
-                match symbol.name.parse::<i32>() {
-                    Ok(value) => Ok(Self::Integer{symbol, value}),
-                    Err(_) => Ok(Self::Atom{symbol}),
-                }
-            }
+            _ => Ok(Self::from_symbol(symbol))
         }
     }
 
     pub fn loc(&self) -> &Loc<'nsa> {
         match self {
             Self::Atom{symbol} | Self::Integer{symbol, ..} => &symbol.loc,
-            Self::List{open_paren, ..} => &open_paren.loc,
+            Self::List{open_paren, ..} | Self::Eval{open_paren, ..} => &open_paren.loc,
         }
     }
 
@@ -120,7 +146,7 @@ impl<'nsa> Expr<'nsa> {
                     } else {
                         match value {
                             Expr::Atom{symbol: symbol2} | Expr::Integer{symbol: symbol2, ..} => symbol == symbol2,
-                            Expr::List{..} => false,
+                            Expr::List{..} | Expr::Eval{..} => false,
                         }
                     }
                 } else {
@@ -128,9 +154,23 @@ impl<'nsa> Expr<'nsa> {
                     true
                 }
             }
+            Expr::Eval{lhs: pattern_lhs, rhs: pattern_rhs, ..} => {
+                match value {
+                    Expr::Atom{..} | Expr::Integer{..} | Expr::List{..} => false,
+                    Expr::Eval{lhs: value_lhs, rhs: value_rhs, ..} => {
+                        if !pattern_lhs.pattern_match(value_lhs, scope, bindings) {
+                            return false;
+                        }
+                        if !pattern_rhs.pattern_match(value_rhs, scope, bindings) {
+                            return false;
+                        }
+                        true
+                    }
+                }
+            }
             Expr::List{items: pattern_items, ..} => {
                 match value {
-                    Expr::Atom{..} | Expr::Integer{..} => false,
+                    Expr::Atom{..} | Expr::Integer{..} | Expr::Eval{..} => false,
                     Expr::List{items: value_items, ..} => {
                         if pattern_items.len() != value_items.len() {
                             return false
