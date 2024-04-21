@@ -68,13 +68,8 @@ fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Expr<'_>)
         match set.name {
             "Integer" => {
                 match value {
-                    Expr::Atom{symbol} => {
-                        match symbol.name.parse::<i32>() {
-                            Ok(_) => Ok(true),
-                            Err(_) => Ok(false),
-                        }
-                    }
-                    Expr::List{..} => Ok(false),
+                    Expr::Integer{..} => Ok(true),
+                    _ => Ok(false),
                 }
             }
             _ => {

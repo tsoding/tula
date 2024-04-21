@@ -8,10 +8,10 @@ pub enum Expr<'nsa> {
     Atom {
         symbol: Symbol<'nsa>,
     },
-    // Integer {
-    //     value: i32,
-    //     symbol: Symbol<'nsa>,
-    // },
+    Integer {
+        value: i32,
+        symbol: Symbol<'nsa>,
+    },
     List {
         open_paren: Symbol<'nsa>,
         items: Vec<Expr<'nsa>>
@@ -21,6 +21,7 @@ pub enum Expr<'nsa> {
 impl<'nsa> fmt::Display for Expr<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Integer{value, ..} => write!(f, "{value}"),
             Self::Atom{symbol: Symbol{name, ..}} => write!(f, "{name}"),
             Self::List{items, ..} => {
                 write!(f, "(")?;
@@ -40,7 +41,7 @@ impl<'nsa> fmt::Display for Expr<'nsa> {
 impl<'nsa> Expr<'nsa> {
     pub fn find_symbol(&self, needle: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
         match self {
-            Self::Atom{symbol} => if symbol == needle {
+            Self::Atom{symbol} | Self::Integer{symbol, ..} => if symbol == needle {
                 Some(symbol)
             } else {
                 None
@@ -53,14 +54,14 @@ impl<'nsa> Expr<'nsa> {
 
     pub fn atom_symbol(&self) -> Option<Symbol<'nsa>> {
         match self {
-            &Self::Atom{symbol} => Some(symbol),
+            &Self::Atom{symbol} | &Self::Integer{symbol, ..} => Some(symbol),
             Self::List{..} => None,
         }
     }
 
     pub fn substitute(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Expr<'nsa> {
         match self {
-            Self::Atom{symbol} => {
+            Self::Atom{symbol} | Self::Integer{symbol, ..} => {
                 if symbol.name == var.name {
                     expr
                 } else {
@@ -92,20 +93,25 @@ impl<'nsa> Expr<'nsa> {
                     items,
                 })
             }
-            _ => Ok(Self::Atom{symbol}),
+            _ => {
+                match symbol.name.parse::<i32>() {
+                    Ok(value) => Ok(Self::Integer{symbol, value}),
+                    Err(_) => Ok(Self::Atom{symbol}),
+                }
+            }
         }
     }
 
     pub fn loc(&self) -> &Loc<'nsa> {
         match self {
-            Self::Atom{symbol} => &symbol.loc,
+            Self::Atom{symbol} | Self::Integer{symbol, ..} => &symbol.loc,
             Self::List{open_paren, ..} => &open_paren.loc,
         }
     }
 
     pub fn pattern_match(&self, value: &Expr<'nsa>, scope: Option<&Scope<'nsa>>, bindings: &mut HashMap<Symbol<'nsa>, Expr<'nsa>>) -> bool {
         match (self, value) {
-            (Expr::Atom{symbol}, _) => {
+            (Expr::Atom{symbol}, _) | (Expr::Integer{symbol, ..}, _) => {
                 if let Some(scope) = scope {
                     if scope.contains_key(symbol) {
                         // TODO: check if the name already exists in the bindings
@@ -113,7 +119,7 @@ impl<'nsa> Expr<'nsa> {
                         true
                     } else {
                         match value {
-                            Expr::Atom{symbol: symbol2} => symbol == symbol2,
+                            Expr::Atom{symbol: symbol2} | Expr::Integer{symbol: symbol2, ..} => symbol == symbol2,
                             _ => false,
                         }
                     }

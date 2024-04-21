@@ -24,4 +24,5 @@ for _ in Cells {
 }
 
 // TODO: how to limit the amount of iterations
+// Maybe some sort of unary counter after the tape
 run Entry { & . . . . . . . . . . . . . . . # . & }
