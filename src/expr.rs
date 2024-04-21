@@ -110,8 +110,8 @@ impl<'nsa> Expr<'nsa> {
     }
 
     pub fn pattern_match(&self, value: &Expr<'nsa>, scope: Option<&Scope<'nsa>>, bindings: &mut HashMap<Symbol<'nsa>, Expr<'nsa>>) -> bool {
-        match (self, value) {
-            (Expr::Atom{symbol}, _) | (Expr::Integer{symbol, ..}, _) => {
+        match self {
+            Expr::Atom{symbol} | Expr::Integer{symbol, ..} => {
                 if let Some(scope) = scope {
                     if scope.contains_key(symbol) {
                         // TODO: check if the name already exists in the bindings
@@ -120,7 +120,7 @@ impl<'nsa> Expr<'nsa> {
                     } else {
                         match value {
                             Expr::Atom{symbol: symbol2} | Expr::Integer{symbol: symbol2, ..} => symbol == symbol2,
-                            _ => false,
+                            Expr::List{..} => false,
                         }
                     }
                 } else {
@@ -128,19 +128,22 @@ impl<'nsa> Expr<'nsa> {
                     true
                 }
             }
-            (Expr::List{items: pattern_items, ..}, Expr::List{items: value_items, ..}) => {
-                if pattern_items.len() == value_items.len() {
-                    for (a, b) in pattern_items.iter().zip(value_items.iter()) {
-                        if !a.pattern_match(b, scope, bindings) {
-                            return false;
+            Expr::List{items: pattern_items, ..} => {
+                match value {
+                    Expr::Atom{..} | Expr::Integer{..} => false,
+                    Expr::List{items: value_items, ..} => {
+                        if pattern_items.len() != value_items.len() {
+                            return false
                         }
+                        for (a, b) in pattern_items.iter().zip(value_items.iter()) {
+                            if !a.pattern_match(b, scope, bindings) {
+                                return false;
+                            }
+                        }
+                        true
                     }
-                    true
-                } else {
-                    false
                 }
             }
-            _ => false
         }
     }
 }
