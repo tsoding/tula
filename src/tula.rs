@@ -15,6 +15,7 @@ type Result<T> = result::Result<T, ()>;
 
 #[derive(Debug, Clone)]
 struct Case<'nsa> {
+    keyword: Symbol<'nsa>,
     state: Expr<'nsa>,
     read: Expr<'nsa>,
     write: Expr<'nsa>,
@@ -48,8 +49,8 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
                 }
                 write!(f, "}}")
             }
-            Self::Case(Case{state, read, write, step, next}) => {
-                write!(f, "case {state} {read} {write} {step} {next}")
+            Self::Case(Case{keyword, state, read, write, step, next}) => {
+                write!(f, "{keyword} {state} {read} {write} {step} {next}")
             }
             Self::For{var, set, body} => {
                 write!(f, "for {var} in {set} {body}")
@@ -59,6 +60,7 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
 }
 
 type Scope<'nsa> = HashMap<Symbol<'nsa>, Symbol<'nsa>>;
+const MAGICAL_SETS: &[&str] = &["Integer"];
 
 fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Expr<'_>) -> Result<bool> {
     if let Some(set_values) = program.sets.get(set) {
@@ -80,10 +82,54 @@ fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Expr<'_>)
 }
 
 impl<'nsa> Statement<'nsa> {
-    fn type_check_case(&self, program: &Program<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>, scope: &mut Scope<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
+    fn sanity_check(&self, program: &Program<'nsa>, scope: &mut Scope<'nsa>) -> Result<()> {
+        match self {
+            Statement::Case(case) => {
+                let mut unused_vars = vec![];
+                for (var, set) in scope.iter() {
+                    if !(program.sets.contains_key(set) || MAGICAL_SETS.contains(&set.name)) {
+                        eprintln!("{loc}: ERROR: {set} does not exists", loc = set.loc);
+                        return Err(())
+                    }
+
+                    if case.state.uses_var(var).or_else(|| case.read.uses_var(var)).is_none() {
+                        unused_vars.push(var);
+                    }
+                }
+                if !unused_vars.is_empty() {
+                    eprintln!("{loc}: ERROR: not all variables in the scope are used in the input of the case", loc = case.keyword.loc);
+                    for var in unused_vars {
+                        eprintln!("{loc}: NOTE: unused variable {var}", loc = var.loc);
+                    }
+                    return Err(())
+                }
+                Ok(())
+            }
+            Statement::Block{statements} => {
+                for statement in statements {
+                    statement.sanity_check(program, scope)?
+                }
+                Ok(())
+            }
+            Statement::For{var, set, body} => {
+                if let Some((shadowed_var, _)) = scope.get_key_value(var) {
+                    println!("{loc}: ERROR: {var} shadows another name in the higher scope", loc = var.loc);
+                    println!("{loc}: NOTE: the shadowed name is located here", loc = shadowed_var.loc);
+                    return Err(())
+                }
+                scope.insert(*var, *set);
+                let result = body.sanity_check(program, scope);
+                scope.remove(var);
+                result
+            }
+        }
+    }
+
+    fn type_check_next_case(&self, program: &Program<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>, scope: &mut Scope<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
         match self {
             Statement::Case(case) => {
                 let mut bindings = HashMap::new();
+
                 if !case.state.pattern_match(state, Some(scope), &mut bindings) {
                     return Ok(None)
                 }
@@ -91,34 +137,21 @@ impl<'nsa> Statement<'nsa> {
                     return Ok(None)
                 }
 
-                let mut write = case.write.clone();
-                let mut step  = case.step.clone();
-                let mut next  = case.next.clone();
                 for (var, set) in scope.iter() {
                     if let Some(value) = bindings.get(var) {
-                        if set_contains_value(program, set, value)? {
-                            write = write.substitute_var(*var, value.clone());
-                            step = step.substitute_var(*var, value.clone());
-                            next = next.substitute_var(*var, value.clone());
-                        } else {
+                        if !set_contains_value(program, set, value)? {
                             return Ok(None)
                         }
                     } else {
-                        if let Some(symbol) = case.write.uses_var(var)
-                            .or_else(|| case.step.uses_var(var))
-                            .or_else(|| case.next.uses_var(var))
-                        {
-                            eprintln!("{loc}: ERROR: ambiguous use of variable {var}", loc = symbol.loc);
-                            eprintln!("{loc}: NOTE: to make it unambiguous it must be use here", loc = case.state.loc());
-                            eprintln!("{loc}: NOTE: or here", loc = case.read.loc());
-                            return Err(())
-                        } else {
-                            eprintln!("{loc}: ERROR: unused variable {var}", loc = var.loc);
-                            return Err(())
-                        }
+                        unreachable!("Sanity check was not performed");
                     }
                 }
-                Ok(Some((write, step, next)))
+
+                Ok(Some((
+                    case.write.substitute_bindings(&bindings),
+                    case.step.substitute_bindings(&bindings),
+                    case.next.substitute_bindings(&bindings)
+                )))
             }
             Statement::Block{statements} => {
                 for statement in statements {
@@ -155,15 +188,12 @@ impl<'nsa> Statement<'nsa> {
                     }
                     Ok(())
                 } else {
-                    match set.name {
-                        "Integer" => {
-                            eprintln!("{loc}: ERROR: cannot expand infinite set {set}", loc = set.loc);
-                            Err(())
-                        }
-                        _ => {
-                            eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
-                            Err(())
-                        }
+                    if MAGICAL_SETS.contains(&set.name) {
+                        eprintln!("{loc}: ERROR: cannot expand magical set {set} because it's too big", loc = set.loc);
+                        Err(())
+                    } else {
+                        eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
+                        Err(())
                     }
                 }
             }
@@ -183,13 +213,16 @@ impl<'nsa> Statement<'nsa> {
                     statements: statements.iter().map(|s| s.substitute_var(var, expr.clone())).collect()
                 }
             }
-            Statement::Case(Case{state, read, write, step, next}) => {
-                let state = state.substitute_var(var, expr.clone());
-                let read  = read.substitute_var(var, expr.clone());
-                let write = write.substitute_var(var, expr.clone());
-                let step  = step.substitute_var(var, expr.clone());
-                let next  = next.substitute_var(var, expr.clone());
-                Statement::Case(Case{state, read, write, step, next})
+            Statement::Case(Case{keyword, state, read, write, step, next}) => {
+                let mut bindings = HashMap::new();
+                bindings.insert(var, expr.clone());
+                let state = state.substitute_bindings(&bindings);
+                let read  = read.substitute_bindings(&bindings);
+                let write = write.substitute_bindings(&bindings);
+                let step  = step.substitute_bindings(&bindings);
+                let next  = next.substitute_bindings(&bindings);
+                let keyword = *keyword;
+                Statement::Case(Case{keyword, state, read, write, step, next})
             }
             Statement::For{var: for_var, set: for_set, body} => {
                 // TODO: allow subsituting the sets
@@ -360,19 +393,29 @@ struct Program<'nsa> {
     runs: Vec<Run<'nsa>>,
 }
 
-fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Case<'nsa>> {
+impl<'nsa> Program<'nsa> {
+    fn sanity_check(&self) -> Result<()> {
+        for statement in &self.statements {
+            let mut scope = Scope::new();
+            statement.sanity_check(self, &mut scope)?;
+        }
+        Ok(())
+    }
+}
+
+fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>, keyword: Symbol<'nsa>) -> Result<Case<'nsa>> {
     let state = Expr::parse(lexer)?;
     let read  = Expr::parse(lexer)?;
     let write = Expr::parse(lexer)?;
     let step  = Expr::parse(lexer)?;
     let next  = Expr::parse(lexer)?;
-    Ok(Case{state, read, write, step, next})
+    Ok(Case{keyword, state, read, write, step, next})
 }
 
 fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
     let key = lexer.expect_symbols(&["case", "for", "{"])?;
     match key.name {
-        "case" => Ok(Statement::Case(parse_case(lexer)?)),
+        "case" => Ok(Statement::Case(parse_case(lexer, key)?)),
         "{" => {
             let mut statements = vec![];
             while let Some(symbol) = lexer.peek_symbol() {
@@ -517,6 +560,8 @@ const COMMANDS: &[Command] = &[
             })?;
             let program = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
 
+            program.sanity_check()?;
+
             for run in &program.runs {
                 println!("{loc}: run", loc = run.keyword.loc);
 
@@ -614,6 +659,8 @@ const COMMANDS: &[Command] = &[
             })?;
 
             let program = parse_program(&mut Lexer::new(&source, &source_path))?;
+
+            program.sanity_check()?;
 
             for statement in &program.statements {
                 statement.expand(&program)?;

@@ -127,10 +127,10 @@ impl<'nsa> Expr<'nsa> {
         }
     }
 
-    pub fn substitute_var(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Expr<'nsa> {
+    pub fn substitute_bindings(&self, bindings: &HashMap<Symbol<'nsa>, Expr<'nsa>>) -> Expr<'nsa> {
         match self {
             Self::Atom(Atom::Symbol(symbol))  => {
-                if symbol.name == var.name {
+                if let Some(expr) = bindings.get(symbol).cloned() {
                     expr
                 } else {
                     self.clone()
@@ -138,12 +138,12 @@ impl<'nsa> Expr<'nsa> {
             }
             Self::Atom(Atom::Integer{..}) => self.clone(),
             Self::Eval{open_paren, lhs, rhs} => {
-                let lhs = Box::new(lhs.substitute_var(var, expr.clone()));
-                let rhs = Box::new(rhs.substitute_var(var, expr));
+                let lhs = Box::new(lhs.substitute_bindings(bindings));
+                let rhs = Box::new(rhs.substitute_bindings(bindings));
                 Self::Eval{open_paren: *open_paren, lhs, rhs}
             }
             Self::List{open_paren, items} => {
-                let items = items.iter().map(|item| item.substitute_var(var, expr.clone())).collect();
+                let items = items.iter().map(|item| item.substitute_bindings(bindings)).collect();
                 Self::List{open_paren: *open_paren, items}
             }
         }

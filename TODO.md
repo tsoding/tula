@@ -18,9 +18,9 @@
 - [x] Case matching based on type checking instead of literal symbol
       substitution.
 - [x] Arithmetic operations on values from Integer set
-- [ ] Error out on the case not using all the variables in the scope
+- [x] Error out on the case not using all the variables in the scope
+- [x] Type check cases before execusion
 - [ ] `--no-expr` flag for `expand` subcommand
-- [ ] Type check cases before execusion
 - [ ] Sets of sets
   ```tula
   for s in Sets
