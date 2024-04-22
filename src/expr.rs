@@ -2,6 +2,7 @@ use lexer::*;
 use std::fmt;
 use std::collections::HashMap;
 use super::{Result, Scope};
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone)]
 pub enum Atom<'nsa> {
@@ -18,6 +19,15 @@ impl<'nsa> Atom<'nsa> {
             Ok(value) => Atom::Integer{symbol, value},
             // TODO: throw a warning if number is treated as a symbol because of an overflow or other stupid reason
             Err(_) => Atom::Symbol(symbol),
+        }
+    }
+}
+
+impl<'nsa> Hash for Atom<'nsa> {
+    fn hash<H>(&self, h: &mut H) where H: Hasher {
+        match self {
+            Self::Symbol(symbol) => symbol.hash(h),
+            Self::Integer{value, ..} => value.hash(h),
         }
     }
 }
@@ -75,6 +85,21 @@ impl<'nsa> PartialEq for Expr<'nsa> {
                     Self::List{items: other_items, ..} => items == other_items,
                     Self::Atom(_) | Self::Eval{..} => false,
                 }
+            }
+        }
+    }
+}
+
+impl<'nsa> Eq for Expr<'nsa> {}
+
+impl<'nsa> Hash for Expr<'nsa> {
+    fn hash<H>(&self, h: &mut H) where H: Hasher {
+        match self {
+            Self::Atom(atom) => atom.hash(h),
+            Self::List{items, ..} => items.hash(h),
+            Self::Eval{lhs, rhs, ..} => {
+                lhs.hash(h);
+                rhs.hash(h);
             }
         }
     }

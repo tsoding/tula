@@ -6,7 +6,7 @@ use std::result;
 use std::fmt::{self, Write};
 use std::env;
 use std::process::ExitCode;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use lexer::*;
 use expr::*;
@@ -394,6 +394,25 @@ fn parse_seq_of_exprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Ve
     Ok((open_curly, seq))
 }
 
+fn parse_set_of_exprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<HashSet<Expr<'nsa>>> {
+    let _ = lexer.expect_symbols(&["{"])?;
+    let mut set: HashSet<Expr<'nsa>> = HashSet::new();
+    while let Some(symbol) = lexer.peek_symbol() {
+        if symbol.name == "}" {
+            break;
+        }
+        let value = Expr::parse(lexer)?;
+        if let Some(existing_value) = set.get(&value) {
+            eprintln!("{loc}: ERROR: Set may only consist of non-repeating values", loc = value.loc());
+            eprintln!("{loc}: NOTE: Same value was provided here", loc = existing_value.loc());
+            return Err(());
+        }
+        set.insert(value);
+    }
+    let _ = lexer.expect_symbols(&["}"])?;
+    Ok(set)
+}
+
 struct Run<'nsa> {
     keyword: Symbol<'nsa>,
     state: Expr<'nsa>,
@@ -428,7 +447,7 @@ impl<'nsa> Run<'nsa> {
 #[derive(Default)]
 struct Program<'nsa> {
     statements: Vec<Statement<'nsa>>,
-    sets: HashMap<Symbol<'nsa>, Vec<Expr<'nsa>>>,
+    sets: HashMap<Symbol<'nsa>, HashSet<Expr<'nsa>>>,
     runs: Vec<Run<'nsa>>,
 }
 
@@ -545,8 +564,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
                     eprintln!("{loc}: NOTE: first definition located here", loc = orig_name.loc);
                     return Err(())
                 }
-                let (_open_curly, set) = parse_seq_of_exprs(lexer)?;
-                program.sets.insert(name, set);
+                program.sets.insert(name, parse_set_of_exprs(lexer)?);
             }
             _ => {
                 eprintln!("{loc}: ERROR: unknown keyword {name}", loc = key.loc, name = key.name);
