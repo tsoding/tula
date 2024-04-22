@@ -29,7 +29,6 @@ enum Statement<'nsa> {
         statements: Vec<Statement<'nsa>>
     },
     For {
-        // TODO: Support Compound Exprs for `var` and `set` in for-loops
         var: Symbol<'nsa>,
         set: Symbol<'nsa>,
         body: Box<Statement<'nsa>>,
@@ -225,8 +224,6 @@ impl<'nsa> Machine<'nsa> {
                             match *rhs {
                                 Expr::Atom(Atom::Integer{value: rhs_value, ..}) => {
                                     self.tape[self.head] = Expr::Atom(Atom::Integer {
-                                        // TODO: This makes it impossible to use Expr::Integer as a variable name, because we use the symbol as the variable name.
-                                        //   Maybe we can just forbid using Integers as variable names?
                                         symbol: open_paren,
                                         value: lhs_value + rhs_value,
                                     })
