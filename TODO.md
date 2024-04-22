@@ -28,6 +28,9 @@
   for a in s
   ```
 - [ ] Union sets
+  ```tula
+  for _ in Integer + Bool
+  ```
 
 # Examples
 
@@ -37,7 +40,7 @@
 - [ ] Universal Turing Machine
 - [ ] Lambda Calc interpreter
 
-# Low Priority
+# Indecisive
 
 - [ ] Pattern matching in `for`-loops
   ```tula
