@@ -36,37 +36,6 @@ enum Statement<'nsa> {
     }
 }
 
-struct NormStatement<'nsa, 'cia>(&'cia Statement<'nsa>);
-
-impl<'nsa, 'cia> fmt::Display for NormStatement<'nsa, 'cia> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let NormStatement(stmt) = self;
-        match stmt {
-            Statement::Block{statements} => {
-                write!(f, "{{")?;
-                for (i, statement) in statements.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, " ")?;
-                    }
-                    write!(f, "{statement}", statement = NormStatement(statement))?;
-                }
-                write!(f, "}}")
-            }
-            Statement::Case(Case{keyword, state, read, write, step, next}) => {
-                let state = NormExpr(state);
-                let read = NormExpr(read);
-                let write = NormExpr(write);
-                let step = NormExpr(step);
-                let next = NormExpr(next);
-                write!(f, "{keyword} {state} {read} {write} {step} {next}")
-            }
-            Statement::For{var, set, body} => {
-                write!(f, "for {var} in {set} {body}")
-            }
-        }
-    }
-}
-
 impl<'nsa> fmt::Display for Statement<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -208,11 +177,16 @@ impl<'nsa> Statement<'nsa> {
 
     fn expand(&self, program: &Program, normalize: bool) -> Result<()> {
         match self {
-            Statement::Case(_) => {
+            Statement::Case(Case{keyword, state, read, write, step, next}) => {
                 if normalize {
-                    println!("{}", NormStatement(self));
+                    let state = NormExpr(state);
+                    let read = NormExpr(read);
+                    let write = NormExpr(write);
+                    let step = NormExpr(step);
+                    let next = NormExpr(next);
+                    println!("{keyword} {state} {read} {write} {step} {next}");
                 } else {
-                    println!("{self}");
+                    println!("{keyword} {state} {read} {write} {step} {next}");
                 }
                 Ok(())
             },
