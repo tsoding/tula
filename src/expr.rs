@@ -115,6 +115,7 @@ impl<'nsa, 'cia> fmt::Display for NormExpr<'nsa, 'cia> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let NormExpr(expr) = self;
         match expr {
+            // TODO: normalize literals wrapped in single quotes
             Expr::Atom(atom) => write!(f, "{atom}"),
             // () => __
             // (1 2 3 4) => _1_2_3_4_
