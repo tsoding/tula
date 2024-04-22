@@ -30,7 +30,7 @@
 
 # Examples
 
-- [ ] Fib
+- [x] Fib
 - [ ] Reverse string
 - [ ] Brainfuck Interpreter
 - [ ] Universal Turing Machine

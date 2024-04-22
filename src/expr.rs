@@ -3,15 +3,47 @@ use std::fmt;
 use std::collections::HashMap;
 use super::{Result, Scope};
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Expr<'nsa> {
-    Atom {
-        symbol: Symbol<'nsa>,
-    },
+#[derive(Debug, Clone)]
+pub enum Atom<'nsa> {
+    Symbol(Symbol<'nsa>),
     Integer {
         value: i32,
         symbol: Symbol<'nsa>,
     },
+}
+
+impl<'nsa> Atom<'nsa> {
+    pub fn from_symbol(symbol: Symbol<'nsa>) -> Self {
+        match symbol.name.parse::<i32>() {
+            Ok(value) => Atom::Integer{symbol, value},
+            // TODO: throw a warning if number is treated as a symbol because of an overflow or other stupid reason
+            Err(_) => Atom::Symbol(symbol),
+        }
+    }
+}
+
+impl<'nsa> PartialEq for Atom<'nsa> {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Self::Symbol(symbol) => {
+                match other {
+                    Self::Symbol(other_symbol) => symbol == other_symbol,
+                    Self::Integer{..} => false,
+                }
+            }
+            Self::Integer{value, ..} => {
+                match other {
+                    Self::Integer{value: other_value, ..} => value == other_value,
+                    Self::Symbol(_) => false,
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Expr<'nsa> {
+    Atom(Atom<'nsa>),
     Eval {
         open_paren: Symbol<'nsa>,
         lhs: Box<Expr<'nsa>>,
@@ -23,12 +55,45 @@ pub enum Expr<'nsa> {
     },
 }
 
+impl<'nsa> PartialEq for Expr<'nsa> {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Self::Atom(atom) => {
+                match other {
+                    Self::Atom(other_atom) => atom == other_atom,
+                    Self::Eval{..} | Self::List{..} => false,
+                }
+            }
+            Self::Eval{lhs, rhs, ..} => {
+                match other {
+                    Self::Eval{lhs: other_lhs, rhs: other_rhs, ..} => lhs == other_lhs && rhs == other_rhs,
+                    Self::Atom(_) | Self::List{..} => false,
+                }
+            }
+            Self::List{items, ..} => {
+                match other {
+                    Self::List{items: other_items, ..} => items == other_items,
+                    Self::Atom(_) | Self::Eval{..} => false,
+                }
+            }
+        }
+    }
+}
+
+impl<'nsa> fmt::Display for Atom<'nsa> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Atom::Symbol(Symbol{name, ..}) => write!(f, "{name}"),
+            Atom::Integer{value, ..} => write!(f, "{value}"),
+        }
+    }
+}
+
 impl<'nsa> fmt::Display for Expr<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Atom(atom) => write!(f, "{atom}"),
             Self::Eval{lhs, rhs, ..} => write!(f, "[{lhs} + {rhs}]"),
-            Self::Integer{value, ..} => write!(f, "{value}"),
-            Self::Atom{symbol: Symbol{name, ..}} => write!(f, "{name}"),
             Self::List{items, ..} => {
                 write!(f, "(")?;
                 for (i, item) in items.iter().enumerate() {
@@ -45,56 +110,42 @@ impl<'nsa> fmt::Display for Expr<'nsa> {
 }
 
 impl<'nsa> Expr<'nsa> {
-    pub fn find_symbol(&self, needle: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
+    pub fn uses_var(&self, var: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
         match self {
-            Self::Atom{symbol} | Self::Integer{symbol, ..} => if symbol == needle {
+            Self::Atom(Atom::Symbol(symbol)) => if symbol == var {
                 Some(symbol)
             } else {
                 None
-            }
+            },
+            Self::Atom(Atom::Integer{..}) => None,
             Self::Eval{lhs, rhs, ..} => {
-                lhs.find_symbol(needle).or_else(|| rhs.find_symbol(needle))
+                lhs.uses_var(var).or_else(|| rhs.uses_var(var))
             }
             Self::List{items, ..} => {
-                items.iter().find_map(|item| item.find_symbol(needle))
+                items.iter().find_map(|item| item.uses_var(var))
             }
         }
     }
 
-    pub fn atom_symbol(&self) -> Option<Symbol<'nsa>> {
+    pub fn substitute_var(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Expr<'nsa> {
         match self {
-            &Self::Atom{symbol} | &Self::Integer{symbol, ..} => Some(symbol),
-            Self::List{..} | Self::Eval{..} => None,
-        }
-    }
-
-    pub fn substitute(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Expr<'nsa> {
-        match self {
-            Self::Atom{symbol} | Self::Integer{symbol, ..} => {
+            Self::Atom(Atom::Symbol(symbol))  => {
                 if symbol.name == var.name {
                     expr
                 } else {
                     self.clone()
                 }
             }
-
+            Self::Atom(Atom::Integer{..}) => self.clone(),
             Self::Eval{open_paren, lhs, rhs} => {
-                let lhs = Box::new(lhs.substitute(var, expr.clone()));
-                let rhs = Box::new(rhs.substitute(var, expr.clone()));
+                let lhs = Box::new(lhs.substitute_var(var, expr.clone()));
+                let rhs = Box::new(rhs.substitute_var(var, expr));
                 Self::Eval{open_paren: *open_paren, lhs, rhs}
             }
-
             Self::List{open_paren, items} => {
-                let items = items.iter().map(|item| item.substitute(var, expr.clone())).collect();
+                let items = items.iter().map(|item| item.substitute_var(var, expr.clone())).collect();
                 Self::List{open_paren: *open_paren, items}
             }
-        }
-    }
-
-    pub fn from_symbol(symbol: Symbol<'nsa>) -> Self {
-        match symbol.name.parse::<i32>() {
-            Ok(value) => Self::Integer{symbol, value},
-            Err(_) => Self::Atom{symbol},
         }
     }
 
@@ -102,9 +153,9 @@ impl<'nsa> Expr<'nsa> {
         let symbol = lexer.parse_symbol()?;
         match symbol.name {
             "[" => {
-                let lhs = Box::new(Self::from_symbol(lexer.parse_symbol()?));
+                let lhs = Box::new(Expr::Atom(Atom::from_symbol(lexer.parse_symbol()?)));
                 let _ = lexer.expect_symbols(&["+"])?;
-                let rhs = Box::new(Self::from_symbol(lexer.parse_symbol()?));
+                let rhs = Box::new(Expr::Atom(Atom::from_symbol(lexer.parse_symbol()?)));
                 let _ = lexer.expect_symbols(&["]"])?;
                 Ok(Self::Eval {
                     lhs, rhs, open_paren: symbol
@@ -124,39 +175,44 @@ impl<'nsa> Expr<'nsa> {
                     items,
                 })
             }
-            _ => Ok(Self::from_symbol(symbol))
+            _ => Ok(Expr::Atom(Atom::from_symbol(symbol)))
         }
     }
 
     pub fn loc(&self) -> &Loc<'nsa> {
         match self {
-            Self::Atom{symbol} | Self::Integer{symbol, ..} => &symbol.loc,
+            Self::Atom(Atom::Symbol(symbol)) | Self::Atom(Atom::Integer{symbol, ..}) => &symbol.loc,
             Self::List{open_paren, ..} | Self::Eval{open_paren, ..} => &open_paren.loc,
         }
     }
 
     pub fn pattern_match(&self, value: &Expr<'nsa>, scope: Option<&Scope<'nsa>>, bindings: &mut HashMap<Symbol<'nsa>, Expr<'nsa>>) -> bool {
         match self {
-            Expr::Atom{symbol} | Expr::Integer{symbol, ..} => {
+            Expr::Atom(Atom::Symbol(pattern_symbol)) => {
                 if let Some(scope) = scope {
-                    if scope.contains_key(symbol) {
+                    if scope.contains_key(pattern_symbol) {
                         // TODO: check if the name already exists in the bindings
-                        bindings.insert(*symbol, value.clone());
+                        bindings.insert(*pattern_symbol, value.clone());
                         true
                     } else {
                         match value {
-                            Expr::Atom{symbol: symbol2} | Expr::Integer{symbol: symbol2, ..} => symbol == symbol2,
-                            Expr::List{..} | Expr::Eval{..} => false,
+                            Expr::Atom(Atom::Symbol(value_symbol)) => pattern_symbol == value_symbol,
+                            Expr::List{..} | Expr::Eval{..} | Expr::Atom(Atom::Integer{..}) => false,
                         }
                     }
                 } else {
-                    bindings.insert(*symbol, value.clone());
+                    bindings.insert(*pattern_symbol, value.clone());
                     true
+                }
+            }
+            Expr::Atom(Atom::Integer{value: pattern_value, ..}) => {
+                match value {
+                    Expr::Atom(Atom::Integer{value: value_value, ..}) => pattern_value == value_value,
+                    Expr::Atom(Atom::Symbol(..)) | Expr::List{..} | Expr::Eval{..} => false,
                 }
             }
             Expr::Eval{lhs: pattern_lhs, rhs: pattern_rhs, ..} => {
                 match value {
-                    Expr::Atom{..} | Expr::Integer{..} | Expr::List{..} => false,
                     Expr::Eval{lhs: value_lhs, rhs: value_rhs, ..} => {
                         if !pattern_lhs.pattern_match(value_lhs, scope, bindings) {
                             return false;
@@ -166,11 +222,11 @@ impl<'nsa> Expr<'nsa> {
                         }
                         true
                     }
+                    Expr::Atom(Atom::Symbol(_)) | Expr::Atom(Atom::Integer{..}) | Expr::List{..} => false,
                 }
             }
             Expr::List{items: pattern_items, ..} => {
                 match value {
-                    Expr::Atom{..} | Expr::Integer{..} | Expr::Eval{..} => false,
                     Expr::List{items: value_items, ..} => {
                         if pattern_items.len() != value_items.len() {
                             return false
@@ -182,6 +238,7 @@ impl<'nsa> Expr<'nsa> {
                         }
                         true
                     }
+                    Expr::Atom(Atom::Symbol(_)) | Expr::Atom(Atom::Integer{..}) | Expr::Eval{..} => false,
                 }
             }
         }

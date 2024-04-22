@@ -29,7 +29,7 @@ enum Statement<'nsa> {
         statements: Vec<Statement<'nsa>>
     },
     For {
-        // TODO: Support Exprs for `var` and `set` in for-loops
+        // TODO: Support Compound Exprs for `var` and `set` in for-loops
         var: Symbol<'nsa>,
         set: Symbol<'nsa>,
         body: Box<Statement<'nsa>>,
@@ -53,7 +53,7 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
                 write!(f, "case {state} {read} {write} {step} {next}")
             }
             Self::For{var, set, body} => {
-                write!(f, "for {var} in {set} {body}", set = set.name)
+                write!(f, "for {var} in {set} {body}")
             }
         }
     }
@@ -68,7 +68,7 @@ fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Expr<'_>)
         match set.name {
             "Integer" => {
                 match value {
-                    Expr::Integer{..} => Ok(true),
+                    Expr::Atom(Atom::Integer{..}) => Ok(true),
                     _ => Ok(false),
                 }
             }
@@ -98,16 +98,16 @@ impl<'nsa> Statement<'nsa> {
                 for (var, set) in scope.iter() {
                     if let Some(value) = bindings.get(var) {
                         if set_contains_value(program, set, value)? {
-                            write = write.substitute(*var, value.clone());
-                            step = step.substitute(*var, value.clone());
-                            next = next.substitute(*var, value.clone());
+                            write = write.substitute_var(*var, value.clone());
+                            step = step.substitute_var(*var, value.clone());
+                            next = next.substitute_var(*var, value.clone());
                         } else {
                             return Ok(None)
                         }
                     } else {
-                        if let Some(symbol) = case.write.find_symbol(var)
-                            .or_else(|| case.step.find_symbol(var))
-                            .or_else(|| case.next.find_symbol(var))
+                        if let Some(symbol) = case.write.uses_var(var)
+                            .or_else(|| case.step.uses_var(var))
+                            .or_else(|| case.next.uses_var(var))
                         {
                             eprintln!("{loc}: ERROR: ambiguous use of variable {var}", loc = symbol.loc);
                             eprintln!("{loc}: NOTE: to make it unambiguous it must be use here", loc = case.state.loc());
@@ -152,7 +152,7 @@ impl<'nsa> Statement<'nsa> {
             Statement::For{var, set, body} => {
                 if let Some(exprs) = program.sets.get(set) {
                     for expr in exprs {
-                        body.substitute(*var, expr.clone()).expand(program)?;
+                        body.substitute_var(*var, expr.clone()).expand(program)?;
                     }
                     Ok(())
                 } else {
@@ -177,24 +177,24 @@ impl<'nsa> Statement<'nsa> {
         }
     }
 
-    fn substitute(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Statement<'nsa> {
+    fn substitute_var(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Statement<'nsa> {
         match self {
             Statement::Block{statements} => {
                 Statement::Block {
-                    statements: statements.iter().map(|s| s.substitute(var, expr.clone())).collect()
+                    statements: statements.iter().map(|s| s.substitute_var(var, expr.clone())).collect()
                 }
             }
             Statement::Case(Case{state, read, write, step, next}) => {
-                let state = state.substitute(var, expr.clone());
-                let read  = read.substitute(var, expr.clone());
-                let write = write.substitute(var, expr.clone());
-                let step  = step.substitute(var, expr.clone());
-                let next  = next.substitute(var, expr.clone());
+                let state = state.substitute_var(var, expr.clone());
+                let read  = read.substitute_var(var, expr.clone());
+                let write = write.substitute_var(var, expr.clone());
+                let step  = step.substitute_var(var, expr.clone());
+                let next  = next.substitute_var(var, expr.clone());
                 Statement::Case(Case{state, read, write, step, next})
             }
             Statement::For{var: for_var, set: for_set, body} => {
                 // TODO: allow subsituting the sets
-                let body = Box::new(body.substitute(var, expr));
+                let body = Box::new(body.substitute_var(var, expr));
                 Statement::For{
                     var: for_var.clone(),
                     set: *for_set,
@@ -221,15 +221,15 @@ impl<'nsa> Machine<'nsa> {
             if let Some((write, step, next)) = statement.type_check_case(program, &self.state, &self.tape[self.head], &mut scope)? {
                 if let Expr::Eval{open_paren, lhs, rhs} = write {
                     match *lhs {
-                        Expr::Integer{value: lhs_value, ..} => {
+                        Expr::Atom(Atom::Integer{value: lhs_value, ..}) => {
                             match *rhs {
-                                Expr::Integer{value: rhs_value, ..} => {
-                                    self.tape[self.head] = Expr::Integer {
+                                Expr::Atom(Atom::Integer{value: rhs_value, ..}) => {
+                                    self.tape[self.head] = Expr::Atom(Atom::Integer {
                                         // TODO: This makes it impossible to use Expr::Integer as a variable name, because we use the symbol as the variable name.
                                         //   Maybe we can just forbid using Integers as variable names?
                                         symbol: open_paren,
                                         value: lhs_value + rhs_value,
-                                    }
+                                    })
                                 }
                                 _ => {
                                     eprintln!("{loc}: ERROR: right hand side value must be an integer", loc = rhs.loc());
@@ -245,7 +245,7 @@ impl<'nsa> Machine<'nsa> {
                 } else {
                     self.tape[self.head] = write;
                 }
-                if let Some(step) = step.atom_symbol() {
+                if let Expr::Atom(Atom::Symbol(step)) = step {
                     match step.name {
                         "<-" => {
                             if self.head == 0 {
@@ -374,10 +374,33 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
                 if symbol.name == "in" {
                     break;
                 }
-                vars.push(lexer.parse_symbol()?);
+                let expr = Expr::parse(lexer)?;
+                match expr {
+                    Expr::Atom(Atom::Symbol(symbol)) => vars.push(symbol),
+                    Expr::Atom(Atom::Integer{symbol: Symbol{loc, ..}, ..}) => {
+                        eprintln!("{loc}: ERROR: Integers may not be used as variable names");
+                        return Err(())
+                    }
+                    Expr::Eval{open_paren: Symbol{loc, ..}, ..} |
+                    Expr::List{open_paren: Symbol{loc, ..}, ..} => {
+                        eprintln!("{loc}: ERROR: Pattern Matching in Universal Quantifiers is not supported");
+                        return Err(())
+                    }
+                }
             }
             let _ = lexer.expect_symbols(&["in"])?;
-            let set = lexer.parse_symbol()?;
+            let set = match Expr::parse(lexer)? {
+                Expr::Atom(Atom::Symbol(symbol)) => symbol,
+                Expr::Atom(Atom::Integer{symbol: Symbol{loc, ..}, ..}) => {
+                    eprintln!("{loc}: ERROR: Integers may not be used as set names");
+                    return Err(())
+                }
+                Expr::Eval{open_paren: Symbol{loc, ..}, ..} |
+                Expr::List{open_paren: Symbol{loc, ..}, ..} => {
+                    eprintln!("{loc}: ERROR: Set must be just a name");
+                    return Err(())
+                }
+            };
             let mut result = parse_statement(lexer)?;
             for var in vars.iter().rev() {
                 result = Statement::For{
@@ -412,7 +435,13 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
             }
             "let" => {
                 lexer.next_symbol();
-                let name = lexer.parse_symbol()?;
+                let name = match Atom::from_symbol(lexer.parse_symbol()?) {
+                    Atom::Symbol(name) => name,
+                    Atom::Integer{symbol: Symbol{loc, ..}, ..} => {
+                        eprintln!("{loc}: ERROR: set name may not be an integer");
+                        return Err(())
+                    }
+                };
                 if program.sets.contains_key(&name) {
                     eprintln!("{loc}: ERROR: redefinition of set {name}", loc = name.loc);
                     return Err(())
