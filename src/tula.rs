@@ -334,6 +334,25 @@ struct Run<'nsa> {
     trace: bool,
 }
 
+impl<'nsa> Run<'nsa> {
+    fn expand(&self) {
+        if self.trace {
+            print!("trace");
+        } else {
+            print!("run");
+        }
+        print!(" {entry}", entry = self.state);
+        print!(" {{");
+        for (i, expr) in self.tape.iter().enumerate() {
+            if i > 0 {
+                print!(" ");
+            }
+            print!("{expr}");
+        }
+        print!("}}");
+    }
+}
+
 #[derive(Default)]
 struct Program<'nsa> {
     statements: Vec<Statement<'nsa>>,
@@ -600,20 +619,7 @@ const COMMANDS: &[Command] = &[
                 statement.expand(&program)?;
             }
             for run in &program.runs {
-                if run.trace {
-                    print!("trace");
-                } else {
-                    print!("run");
-                }
-                print!(" {entry}", entry = run.state);
-                print!(" {{");
-                for (i, expr) in run.tape.iter().enumerate() {
-                    if i > 0 {
-                        print!(" ");
-                    }
-                    print!("{expr}");
-                }
-                print!("}}");
+                run.expand();
             }
             println!();
             Ok(())
