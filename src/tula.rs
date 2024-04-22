@@ -540,8 +540,9 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
                         return Err(())
                     }
                 };
-                if program.sets.contains_key(&name) {
+                if let Some((orig_name, _)) = program.sets.get_key_value(&name) {
                     eprintln!("{loc}: ERROR: redefinition of set {name}", loc = name.loc);
+                    eprintln!("{loc}: NOTE: first definition located here", loc = orig_name.loc);
                     return Err(())
                 }
                 let (_open_curly, set) = parse_seq_of_exprs(lexer)?;
