@@ -22,15 +22,22 @@
 - [x] Type check cases before execusion
 - [x] `--no-expr` flag for `expand` subcommand
 - [ ] Check for unreachable cases
+  - Check Sets of Cases overlapping on State and Read
+- [ ] Union sets
+  ```tula
+  for _ in Integer + Bool
+  ```
 - [ ] Sets of sets
   ```tula
   for s in Sets
   for a in s
   ```
-- [ ] Union sets
-  ```tula
-  for _ in Integer + Bool
-  ```
+  This is basically an easier version of Union Sets
+- [ ] Finish off the Eval feature
+  - [ ] Forbid in Pattern Matching
+  - [ ] Forbid in Tapes
+  - [ ] Forbid in Set Definitions
+  - [ ] Always Force in Write, Step and Next
 
 # Examples
 

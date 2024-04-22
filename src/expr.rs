@@ -241,9 +241,12 @@ impl<'nsa> Expr<'nsa> {
         match self {
             Expr::Atom(Atom::Symbol(pattern_symbol)) => {
                 if scope.contains_key(pattern_symbol) {
-                    // TODO: check if the name already exists in the bindings
-                    bindings.insert(*pattern_symbol, value.clone());
-                    true
+                    if let Some(existing_value) = bindings.get(pattern_symbol) {
+                        existing_value == value
+                    } else {
+                        bindings.insert(*pattern_symbol, value.clone());
+                        true
+                    }
                 } else {
                     match value {
                         Expr::Atom(Atom::Symbol(value_symbol)) => pattern_symbol == value_symbol,
