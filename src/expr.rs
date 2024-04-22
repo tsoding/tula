@@ -212,23 +212,18 @@ impl<'nsa> Expr<'nsa> {
         }
     }
 
-    pub fn pattern_match(&self, value: &Expr<'nsa>, scope: Option<&Scope<'nsa>>, bindings: &mut HashMap<Symbol<'nsa>, Expr<'nsa>>) -> bool {
+    pub fn pattern_match(&self, value: &Expr<'nsa>, scope: &Scope<'nsa>, bindings: &mut HashMap<Symbol<'nsa>, Expr<'nsa>>) -> bool {
         match self {
             Expr::Atom(Atom::Symbol(pattern_symbol)) => {
-                if let Some(scope) = scope {
-                    if scope.contains_key(pattern_symbol) {
-                        // TODO: check if the name already exists in the bindings
-                        bindings.insert(*pattern_symbol, value.clone());
-                        true
-                    } else {
-                        match value {
-                            Expr::Atom(Atom::Symbol(value_symbol)) => pattern_symbol == value_symbol,
-                            Expr::List{..} | Expr::Eval{..} | Expr::Atom(Atom::Integer{..}) => false,
-                        }
-                    }
-                } else {
+                if scope.contains_key(pattern_symbol) {
+                    // TODO: check if the name already exists in the bindings
                     bindings.insert(*pattern_symbol, value.clone());
                     true
+                } else {
+                    match value {
+                        Expr::Atom(Atom::Symbol(value_symbol)) => pattern_symbol == value_symbol,
+                        Expr::List{..} | Expr::Eval{..} | Expr::Atom(Atom::Integer{..}) => false,
+                    }
                 }
             }
             Expr::Atom(Atom::Integer{value: pattern_value, ..}) => {

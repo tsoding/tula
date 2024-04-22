@@ -161,10 +161,10 @@ impl<'nsa> Statement<'nsa> {
             Statement::Case(case) => {
                 let mut bindings = HashMap::new();
 
-                if !case.state.pattern_match(state, Some(scope), &mut bindings) {
+                if !case.state.pattern_match(state, scope, &mut bindings) {
                     return Ok(None)
                 }
-                if !case.read.pattern_match(read, Some(scope), &mut bindings) {
+                if !case.read.pattern_match(read, scope, &mut bindings) {
                     return Ok(None)
                 }
 
