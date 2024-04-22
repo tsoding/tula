@@ -36,6 +36,37 @@ enum Statement<'nsa> {
     }
 }
 
+struct NormStatement<'nsa, 'cia>(&'cia Statement<'nsa>);
+
+impl<'nsa, 'cia> fmt::Display for NormStatement<'nsa, 'cia> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let NormStatement(stmt) = self;
+        match stmt {
+            Statement::Block{statements} => {
+                write!(f, "{{")?;
+                for (i, statement) in statements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{statement}", statement = NormStatement(statement))?;
+                }
+                write!(f, "}}")
+            }
+            Statement::Case(Case{keyword, state, read, write, step, next}) => {
+                let state = NormExpr(state);
+                let read = NormExpr(read);
+                let write = NormExpr(write);
+                let step = NormExpr(step);
+                let next = NormExpr(next);
+                write!(f, "{keyword} {state} {read} {write} {step} {next}")
+            }
+            Statement::For{var, set, body} => {
+                write!(f, "for {var} in {set} {body}")
+            }
+        }
+    }
+}
+
 impl<'nsa> fmt::Display for Statement<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -155,7 +186,7 @@ impl<'nsa> Statement<'nsa> {
             }
             Statement::Block{statements} => {
                 for statement in statements {
-                    if let Some(triple) = statement.type_check_case(program, state, read, scope)? {
+                    if let Some(triple) = statement.type_check_next_case(program, state, read, scope)? {
                         return Ok(Some(triple))
                     }
                 }
@@ -168,23 +199,27 @@ impl<'nsa> Statement<'nsa> {
                     return Err(())
                 }
                 scope.insert(*var, *set);
-                let result = body.type_check_case(program, state, read, scope);
+                let result = body.type_check_next_case(program, state, read, scope);
                 scope.remove(var);
                 result
             }
         }
     }
 
-    fn expand(&self, program: &Program) -> Result<()> {
+    fn expand(&self, program: &Program, normalize: bool) -> Result<()> {
         match self {
             Statement::Case(_) => {
-                println!("{self}");
+                if normalize {
+                    println!("{}", NormStatement(self));
+                } else {
+                    println!("{self}");
+                }
                 Ok(())
             },
             Statement::For{var, set, body} => {
                 if let Some(exprs) = program.sets.get(set) {
                     for expr in exprs {
-                        body.substitute_var(*var, expr.clone()).expand(program)?;
+                        body.substitute_var(*var, expr.clone()).expand(program, normalize)?;
                     }
                     Ok(())
                 } else {
@@ -199,7 +234,7 @@ impl<'nsa> Statement<'nsa> {
             }
             Statement::Block{statements} => {
                 for statement in statements.iter() {
-                    statement.expand(program)?;
+                    statement.expand(program, normalize)?;
                 }
                 Ok(())
             }
@@ -250,7 +285,7 @@ impl<'nsa> Machine<'nsa> {
     fn next(&mut self, program: &Program<'nsa>) -> Result<()> {
         for statement in program.statements.iter() {
             let mut scope = Scope::new();
-            if let Some((write, step, next)) = statement.type_check_case(program, &self.state, &self.tape[self.head], &mut scope)? {
+            if let Some((write, step, next)) = statement.type_check_next_case(program, &self.state, &self.tape[self.head], &mut scope)? {
                 if let Expr::Eval{open_paren, lhs, rhs} = write {
                     match *lhs {
                         Expr::Atom(Atom::Integer{value: lhs_value, ..}) => {
@@ -368,7 +403,7 @@ struct Run<'nsa> {
 }
 
 impl<'nsa> Run<'nsa> {
-    fn expand(&self) {
+    fn expand(&self, normalize: bool) {
         if self.trace {
             print!("trace");
         } else {
@@ -380,7 +415,11 @@ impl<'nsa> Run<'nsa> {
             if i > 0 {
                 print!(" ");
             }
-            print!("{expr}");
+            if normalize {
+                print!("{expr}", expr = NormExpr(&expr));
+            } else {
+                print!("{expr}");
+            }
         }
         print!("}}");
     }
@@ -543,6 +582,18 @@ struct Command {
 
 const COMMANDS: &[Command] = &[
     Command {
+        name: "debug",
+        description: "Just debug some shit",
+        signature: "",
+        run: |_command, _program_name, _arg| {
+            let source = "(1 (2 3) 4)";
+            let mut lexer = Lexer::new(&source, file!());
+            let expr = Expr::parse(&mut lexer)?;
+            println!("{}", NormExpr(&expr));
+            Ok(())
+        }
+    },
+    Command {
         name: "run",
         description: "Run the Tula Program",
         signature: "<input.tula>",
@@ -644,15 +695,30 @@ const COMMANDS: &[Command] = &[
     Command {
         name: "expand",
         description: "Expands all the Universal Quantifiers hardcoding all of the cases",
-        signature: "<input.tula>",
+        signature: "[--no-expr] <input.tula>",
         run: |command, program_name: &str, mut args: env::Args| {
-            let source_path;
-            if let Some(arg) = args.next() {
-                source_path = arg;
-            } else {
-                command_usage(program_name, command);
-                return Err(());
+            let mut source_path = None;
+            let mut no_expr = false;
+
+            while let Some(arg) = args.next() {
+                match arg.as_str() {
+                    "--no-expr" => no_expr = true,
+                    _ => {
+                        if source_path.is_some() {
+                            command_usage(program_name, command);
+                            eprintln!("ERROR: interpreting several files is not supported");
+                            return Err(())
+                        }
+                        source_path = Some(arg)
+                    }
+                }
             }
+
+            let Some(source_path) = source_path else {
+                command_usage(program_name, command);
+                eprintln!("ERROR: no input is provided");
+                return Err(());
+            };
 
             let source = fs::read_to_string(&source_path).map_err(|err| {
                 eprintln!("ERROR: could not read file {source_path}: {err}");
@@ -663,10 +729,10 @@ const COMMANDS: &[Command] = &[
             program.sanity_check()?;
 
             for statement in &program.statements {
-                statement.expand(&program)?;
+                statement.expand(&program, no_expr)?;
             }
             for run in &program.runs {
-                run.expand();
+                run.expand(no_expr);
             }
             println!();
             Ok(())

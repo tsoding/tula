@@ -109,6 +109,31 @@ impl<'nsa> fmt::Display for Expr<'nsa> {
     }
 }
 
+pub struct NormExpr<'nsa, 'cia>(pub &'cia Expr<'nsa>);
+
+impl<'nsa, 'cia> fmt::Display for NormExpr<'nsa, 'cia> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let NormExpr(expr) = self;
+        match expr {
+            Expr::Atom(atom) => write!(f, "{atom}"),
+            // () => __
+            // (1 2 3 4) => _1_2_3_4_
+            // (1 (2 3) 4) _1__2_3__4_
+            Expr::List{items, ..} => {
+                write!(f, "_")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, "_")?;
+                    }
+                    write!(f, "{}", NormExpr(item))?;
+                }
+                write!(f, "_")
+            }
+            Expr::Eval{..} => todo!("I don't know how to normalize these things yet"),
+        }
+    }
+}
+
 impl<'nsa> Expr<'nsa> {
     pub fn uses_var(&self, var: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
         match self {

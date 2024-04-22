@@ -20,7 +20,8 @@
 - [x] Arithmetic operations on values from Integer set
 - [x] Error out on the case not using all the variables in the scope
 - [x] Type check cases before execusion
-- [ ] `--no-expr` flag for `expand` subcommand
+- [x] `--no-expr` flag for `expand` subcommand
+- [ ] Check for unreachable cases
 - [ ] Sets of sets
   ```tula
   for s in Sets
