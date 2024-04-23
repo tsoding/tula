@@ -13,6 +13,71 @@ use expr::*;
 
 type Result<T> = result::Result<T, ()>;
 
+#[derive(Debug)]
+struct ScopedCase<'nsa> {
+    case: Case<'nsa>,
+    scope: Scope<'nsa>,
+}
+
+impl<'nsa> ScopedCase<'nsa> {
+    fn type_check_next_case(&self, sets: &Sets<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
+        let mut bindings = HashMap::new();
+
+        if !self.case.state.pattern_match(state, &self.scope, &mut bindings) {
+            return Ok(None)
+        }
+        if !self.case.read.pattern_match(read, &self.scope, &mut bindings) {
+            return Ok(None)
+        }
+
+        for (var, set) in self.scope.iter() {
+            if let Some(value) = bindings.get(var) {
+                if !set_contains_value(sets, set, value)? {
+                    return Ok(None)
+                }
+            } else {
+                unreachable!("Sanity check was not performed");
+            }
+        }
+
+        Ok(Some((
+            self.case.write.substitute_bindings(&bindings).force_evals()?,
+            self.case.step.substitute_bindings(&bindings).force_evals()?,
+            self.case.next.substitute_bindings(&bindings).force_evals()?
+        )))
+    }
+
+    fn expand(&self, sets: &Sets<'nsa>, normalize: bool) -> Result<()> {
+        for (var, set) in &self.scope {
+            if let Some(exprs) = sets.get(&set) {
+                for expr in exprs {
+                    let Case{keyword, state, read, write, step, next} = self.case.substitute_var(*var, expr.clone());
+                    let write = write.clone().force_evals()?;
+                    let step = step.clone().force_evals()?;
+                    let next = next.clone().force_evals()?;
+                    if normalize {
+                        let state = NormExpr(&state);
+                        let read = NormExpr(&read);
+                        let write = NormExpr(&write);
+                        let step = NormExpr(&step);
+                        let next = NormExpr(&next);
+                        println!("{keyword} {state} {read} {write} {step} {next}");
+                    } else {
+                        println!("{keyword} {state} {read} {write} {step} {next}");
+                    }
+                }
+            } else if MAGICAL_SETS.contains(&set.name) {
+                eprintln!("{loc}: ERROR: cannot expand magical set {set} because it's too big", loc = set.loc);
+                return Err(())
+            } else {
+                eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
+                return Err(())
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Case<'nsa> {
     keyword: Symbol<'nsa>,
@@ -21,6 +86,21 @@ struct Case<'nsa> {
     write: Expr<'nsa>,
     step: Expr<'nsa>,
     next: Expr<'nsa>,
+}
+
+impl<'nsa> Case<'nsa> {
+    fn substitute_var(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Self {
+        let Case{keyword, state, read, write, step, next} = self;
+        let mut bindings = HashMap::new();
+        bindings.insert(var, expr.clone());
+        let state = state.substitute_bindings(&bindings);
+        let read  = read.substitute_bindings(&bindings);
+        let write = write.substitute_bindings(&bindings);
+        let step  = step.substitute_bindings(&bindings);
+        let next  = next.substitute_bindings(&bindings);
+        let keyword = *keyword;
+        Case{keyword, state, read, write, step, next}
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -62,8 +142,8 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
 type Scope<'nsa> = HashMap<Symbol<'nsa>, Symbol<'nsa>>;
 const MAGICAL_SETS: &[&str] = &["Integer"];
 
-fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Expr<'_>) -> Result<bool> {
-    if let Some(set_values) = program.sets.get(set) {
+fn set_contains_value(sets: &Sets<'_>, set: &Symbol<'_>, value: &Expr<'_>) -> Result<bool> {
+    if let Some(set_values) = sets.get(set) {
         Ok(set_values.contains(value))
     } else {
         match set.name {
@@ -82,12 +162,12 @@ fn set_contains_value(program: &Program<'_>, set: &Symbol<'_>, value: &Expr<'_>)
 }
 
 impl<'nsa> Statement<'nsa> {
-    fn sanity_check(&self, program: &Program<'nsa>, scope: &mut Scope<'nsa>) -> Result<()> {
+    fn compile_to_cases(&self, sets: &Sets<'nsa>, scope: &mut Scope<'nsa>, scoped_cases: &mut Vec<ScopedCase<'nsa>>) -> Result<()> {
         match self {
             Statement::Case(case) => {
                 let mut unused_vars = vec![];
                 for (var, set) in scope.iter() {
-                    if !(program.sets.contains_key(set) || MAGICAL_SETS.contains(&set.name)) {
+                    if !(sets.contains_key(set) || MAGICAL_SETS.contains(&set.name)) {
                         eprintln!("{loc}: ERROR: {set} does not exists", loc = set.loc);
                         return Err(())
                     }
@@ -103,11 +183,15 @@ impl<'nsa> Statement<'nsa> {
                     }
                     return Err(())
                 }
+                scoped_cases.push(ScopedCase {
+                    case: case.clone(),
+                    scope: scope.clone(),
+                });
                 Ok(())
             }
             Statement::Block{statements} => {
                 for statement in statements {
-                    statement.sanity_check(program, scope)?
+                    statement.compile_to_cases(sets, scope, scoped_cases)?
                 }
                 Ok(())
             }
@@ -118,132 +202,9 @@ impl<'nsa> Statement<'nsa> {
                     return Err(())
                 }
                 scope.insert(*var, *set);
-                let result = body.sanity_check(program, scope);
+                let result = body.compile_to_cases(sets, scope, scoped_cases);
                 scope.remove(var);
                 result
-            }
-        }
-    }
-
-    fn type_check_next_case(&self, program: &Program<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>, scope: &mut Scope<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
-        match self {
-            Statement::Case(case) => {
-                let mut bindings = HashMap::new();
-
-                if !case.state.pattern_match(state, scope, &mut bindings) {
-                    return Ok(None)
-                }
-                if !case.read.pattern_match(read, scope, &mut bindings) {
-                    return Ok(None)
-                }
-
-                for (var, set) in scope.iter() {
-                    if let Some(value) = bindings.get(var) {
-                        if !set_contains_value(program, set, value)? {
-                            return Ok(None)
-                        }
-                    } else {
-                        unreachable!("Sanity check was not performed");
-                    }
-                }
-
-                Ok(Some((
-                    case.write.substitute_bindings(&bindings).force_evals()?,
-                    case.step.substitute_bindings(&bindings).force_evals()?,
-                    case.next.substitute_bindings(&bindings).force_evals()?
-                )))
-            }
-            Statement::Block{statements} => {
-                for statement in statements {
-                    if let Some(triple) = statement.type_check_next_case(program, state, read, scope)? {
-                        return Ok(Some(triple))
-                    }
-                }
-                Ok(None)
-            }
-            Statement::For{var, set, body} => {
-                if let Some((shadowed_var, _)) = scope.get_key_value(var) {
-                    println!("{loc}: ERROR: {var} shadows another name in the higher scope", loc = var.loc);
-                    println!("{loc}: NOTE: the shadowed name is located here", loc = shadowed_var.loc);
-                    return Err(())
-                }
-                scope.insert(*var, *set);
-                let result = body.type_check_next_case(program, state, read, scope);
-                scope.remove(var);
-                result
-            }
-        }
-    }
-
-    fn expand(&self, program: &Program, normalize: bool) -> Result<()> {
-        match self {
-            Statement::Case(Case{keyword, state, read, write, step, next}) => {
-                let write = write.clone().force_evals()?;
-                let step = step.clone().force_evals()?;
-                let next = next.clone().force_evals()?;
-                if normalize {
-                    let state = NormExpr(state);
-                    let read = NormExpr(read);
-                    let write = NormExpr(&write);
-                    let step = NormExpr(&step);
-                    let next = NormExpr(&next);
-                    println!("{keyword} {state} {read} {write} {step} {next}");
-                } else {
-                    println!("{keyword} {state} {read} {write} {step} {next}");
-                }
-                Ok(())
-            },
-            Statement::For{var, set, body} => {
-                if let Some(exprs) = program.sets.get(set) {
-                    for expr in exprs {
-                        body.substitute_var(*var, expr.clone()).expand(program, normalize)?;
-                    }
-                    Ok(())
-                } else {
-                    if MAGICAL_SETS.contains(&set.name) {
-                        eprintln!("{loc}: ERROR: cannot expand magical set {set} because it's too big", loc = set.loc);
-                        Err(())
-                    } else {
-                        eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
-                        Err(())
-                    }
-                }
-            }
-            Statement::Block{statements} => {
-                for statement in statements.iter() {
-                    statement.expand(program, normalize)?;
-                }
-                Ok(())
-            }
-        }
-    }
-
-    fn substitute_var(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Statement<'nsa> {
-        match self {
-            Statement::Block{statements} => {
-                Statement::Block {
-                    statements: statements.iter().map(|s| s.substitute_var(var, expr.clone())).collect()
-                }
-            }
-            Statement::Case(Case{keyword, state, read, write, step, next}) => {
-                let mut bindings = HashMap::new();
-                bindings.insert(var, expr.clone());
-                let state = state.substitute_bindings(&bindings);
-                let read  = read.substitute_bindings(&bindings);
-                let write = write.substitute_bindings(&bindings);
-                let step  = step.substitute_bindings(&bindings);
-                let next  = next.substitute_bindings(&bindings);
-                let keyword = *keyword;
-                Statement::Case(Case{keyword, state, read, write, step, next})
-            }
-            Statement::For{var: for_var, set: for_set, body} => {
-                // TODO: allow subsituting the sets
-                let body = Box::new(body.substitute_var(var, expr));
-                Statement::For{
-                    var: for_var.clone(),
-                    set: *for_set,
-                    body
-                }
             }
         }
     }
@@ -260,9 +221,8 @@ struct Machine<'nsa> {
 
 impl<'nsa> Machine<'nsa> {
     fn next(&mut self, program: &Program<'nsa>) -> Result<()> {
-        for statement in program.statements.iter() {
-            let mut scope = Scope::new();
-            if let Some((write, step, next)) = statement.type_check_next_case(program, &self.state, &self.tape[self.head], &mut scope)? {
+        for case in program.scoped_cases.iter() {
+            if let Some((write, step, next)) = case.type_check_next_case(&program.sets, &self.state, &self.tape[self.head])? {
                 self.tape[self.head] = write.force_evals()?;
                 let step = step.expect_atom()?.expect_symbols()?;
                 match step.name {
@@ -394,21 +354,22 @@ impl<'nsa> Run<'nsa> {
     }
 }
 
+type Sets<'nsa> = HashMap<Symbol<'nsa>, HashSet<Expr<'nsa>>>;
+
 #[derive(Default)]
 struct Program<'nsa> {
-    statements: Vec<Statement<'nsa>>,
-    sets: HashMap<Symbol<'nsa>, HashSet<Expr<'nsa>>>,
+    scoped_cases: Vec<ScopedCase<'nsa>>,
+    sets: Sets<'nsa>,
     runs: Vec<Run<'nsa>>,
 }
 
-impl<'nsa> Program<'nsa> {
-    fn sanity_check(&self) -> Result<()> {
-        for statement in &self.statements {
-            let mut scope = Scope::new();
-            statement.sanity_check(self, &mut scope)?;
-        }
-        Ok(())
+fn compile_cases_from_statements<'nsa>(set: &Sets<'nsa>, statements: &[Statement<'nsa>]) -> Result<Vec<ScopedCase<'nsa>>> {
+    let mut scoped_case = vec![];
+    for statement in statements {
+        let mut scope = Scope::new();
+        statement.compile_to_cases(set, &mut scope, &mut scoped_case)?;
     }
+    Ok(scoped_case)
 }
 
 fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>, keyword: Symbol<'nsa>) -> Result<Case<'nsa>> {
@@ -490,15 +451,17 @@ fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
     Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
 }
 
-fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
-    let mut program = Program::default();
+fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<Statement<'nsa>>, Vec<Run<'nsa>>)> {
+    let mut statements = vec![];
+    let mut sets = Sets::new();
+    let mut runs = vec![];
     while let Some(key) = lexer.peek_symbol() {
         match key.name {
             "run" | "trace" => {
-                program.runs.push(parse_run(lexer)?);
+                runs.push(parse_run(lexer)?);
             }
             "case" | "for" => {
-                program.statements.push(parse_statement(lexer)?);
+                statements.push(parse_statement(lexer)?);
             }
             "let" => {
                 lexer.next_symbol();
@@ -509,12 +472,12 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
                         return Err(())
                     }
                 };
-                if let Some((orig_name, _)) = program.sets.get_key_value(&name) {
+                if let Some((orig_name, _)) = sets.get_key_value(&name) {
                     eprintln!("{loc}: ERROR: redefinition of set {name}", loc = name.loc);
                     eprintln!("{loc}: NOTE: first definition located here", loc = orig_name.loc);
                     return Err(())
                 }
-                program.sets.insert(name, parse_set_of_exprs(lexer)?);
+                sets.insert(name, parse_set_of_exprs(lexer)?);
             }
             _ => {
                 eprintln!("{loc}: ERROR: unknown keyword {name}", loc = key.loc, name = key.name);
@@ -522,7 +485,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Program<'nsa>> {
             }
         }
     }
-    Ok(program)
+    Ok((sets, statements, runs))
 }
 
 fn program_usage(program_name: &str) {
@@ -566,9 +529,9 @@ const COMMANDS: &[Command] = &[
             let tula_source = fs::read_to_string(&tula_path).map_err(|err| {
                 eprintln!("ERROR: could not read file {tula_path}: {err}");
             })?;
-            let program = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
-
-            program.sanity_check()?;
+            let (sets, statements, runs) = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
+            let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
+            let program = Program{sets, scoped_cases, runs};
 
             for run in &program.runs {
                 println!("{loc}: run", loc = run.keyword.loc);
@@ -681,14 +644,13 @@ const COMMANDS: &[Command] = &[
                 eprintln!("ERROR: could not read file {source_path}: {err}");
             })?;
 
-            let program = parse_program(&mut Lexer::new(&source, &source_path))?;
+            let (sets, statements, runs) = parse_program(&mut Lexer::new(&source, &source_path))?;
+            let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
 
-            program.sanity_check()?;
-
-            for statement in &program.statements {
-                statement.expand(&program, no_expr)?;
+            for case in &scoped_cases {
+                case.expand(&sets, no_expr)?;
             }
-            for run in &program.runs {
+            for run in &runs {
                 run.expand(no_expr);
             }
             println!();
