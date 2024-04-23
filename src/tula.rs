@@ -178,12 +178,15 @@ impl<'nsa> Statement<'nsa> {
     fn expand(&self, program: &Program, normalize: bool) -> Result<()> {
         match self {
             Statement::Case(Case{keyword, state, read, write, step, next}) => {
+                let write = write.clone().force_evals()?;
+                let step = step.clone().force_evals()?;
+                let next = next.clone().force_evals()?;
                 if normalize {
                     let state = NormExpr(state);
                     let read = NormExpr(read);
-                    let write = NormExpr(write);
-                    let step = NormExpr(step);
-                    let next = NormExpr(next);
+                    let write = NormExpr(&write);
+                    let step = NormExpr(&step);
+                    let next = NormExpr(&next);
                     println!("{keyword} {state} {read} {write} {step} {next}");
                 } else {
                     println!("{keyword} {state} {read} {write} {step} {next}");
