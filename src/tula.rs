@@ -19,6 +19,21 @@ struct ScopedCase<'nsa> {
     scope: Scope<'nsa>,
 }
 
+fn check_unreachable_cases<'nsa>(scoped_cases: &[ScopedCase<'nsa>], sets: &Sets<'nsa>) -> Result<()> {
+    for i in 0..scoped_cases.len() {
+        for j in i+1..scoped_cases.len() {
+            let a = &scoped_cases[i];
+            let b = &scoped_cases[j];
+            if a.intersects(b, sets) {
+                eprintln!("{loc}: ERROR: case overlaps with another case defined before", loc = &b.case.keyword.loc);
+                eprintln!("{loc}: NOTE: the overlap happens with this one", loc = &a.case.keyword.loc);
+                return Err(())
+            }
+        }
+    }
+    Ok(())
+}
+
 impl<'nsa> ScopedCase<'nsa> {
     fn intersects(&self, other: &ScopedCase<'nsa>, sets: &Sets<'nsa>) -> bool {
         self.case.state.intersects(sets, &self.scope, &other.case.state, &other.scope)
@@ -537,17 +552,7 @@ const COMMANDS: &[Command] = &[
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
             let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
 
-            for i in 0..scoped_cases.len() {
-                for j in i+1..scoped_cases.len() {
-                    let a = &scoped_cases[i];
-                    let b = &scoped_cases[j];
-                    if a.intersects(b, &sets) {
-                        eprintln!("{loc}: ERROR: case overlaps with another case defined before", loc = &b.case.keyword.loc);
-                        eprintln!("{loc}: NOTE: the overlap happens with this one", loc = &a.case.keyword.loc);
-                        return Err(())
-                    }
-                }
-            }
+            check_unreachable_cases(&scoped_cases, &sets)?;
 
             let program = Program{sets, scoped_cases, runs};
 
@@ -664,6 +669,7 @@ const COMMANDS: &[Command] = &[
 
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&source, &source_path))?;
             let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
+            check_unreachable_cases(&scoped_cases, &sets)?;
 
             for case in &scoped_cases {
                 case.expand(&sets, no_expr)?;
