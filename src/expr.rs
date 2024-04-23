@@ -14,6 +14,26 @@ pub enum Atom<'nsa> {
 }
 
 impl<'nsa> Atom<'nsa> {
+    pub fn expect_integer(&self) -> Result<i32> {
+        match self {
+            &Self::Integer{value, ..} => Ok(value),
+            Self::Symbol(Symbol{loc, ..}) => {
+                eprintln!("{loc}: ERROR: expected integer but got symbol");
+                Err(())
+            }
+        }
+    }
+
+    pub fn expect_symbols(&self) -> Result<&Symbol<'nsa>> {
+        match self {
+            Self::Integer{symbol: Symbol{loc, ..}, ..} => {
+                eprintln!("{loc}: ERROR: expected symbol but got integer");
+                Err(())
+            }
+            Self::Symbol(symbol) => Ok(symbol),
+        }
+    }
+
     pub fn from_symbol(symbol: Symbol<'nsa>) -> Self {
         match symbol.name.parse::<i32>() {
             Ok(value) => Atom::Integer{symbol, value},
@@ -161,6 +181,41 @@ impl<'nsa, 'cia> fmt::Display for NormExpr<'nsa, 'cia> {
 }
 
 impl<'nsa> Expr<'nsa> {
+    pub fn expect_atom(&self) -> Result<&Atom<'nsa>> {
+        match self {
+            Self::Atom(atom) => Ok(atom),
+            Self::List{open_paren: Symbol{loc, ..}, ..} => {
+                eprintln!("{loc}: ERROR: expected atom but got list");
+                Err(())
+            }
+            Self::Eval{open_paren: Symbol{loc, ..}, ..} => {
+                eprintln!("{loc}: ERROR: expected atom but got eval");
+                Err(())
+            }
+        }
+    }
+
+    pub fn force_evals(self) -> Result<Expr<'nsa>> {
+        match self {
+            Self::Atom(_) => Ok(self),
+            Self::List{open_paren, items} => {
+                let mut new_items = vec![];
+                for item in items {
+                    new_items.push(item.force_evals()?)
+                }
+                Ok(Self::List{open_paren, items: new_items})
+            }
+            Self::Eval{open_paren, lhs, rhs} => {
+                let lhs = lhs.expect_atom()?.expect_integer()?;
+                let rhs = rhs.expect_atom()?.expect_integer()?;
+                Ok(Expr::Atom(Atom::Integer {
+                    symbol: open_paren,
+                    value: lhs + rhs,
+                }))
+            }
+        }
+    }
+
     pub fn uses_var(&self, var: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
         match self {
             Self::Atom(Atom::Symbol(symbol)) => if symbol == var {

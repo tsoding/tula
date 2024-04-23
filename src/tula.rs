@@ -148,9 +148,9 @@ impl<'nsa> Statement<'nsa> {
                 }
 
                 Ok(Some((
-                    case.write.substitute_bindings(&bindings),
-                    case.step.substitute_bindings(&bindings),
-                    case.next.substitute_bindings(&bindings)
+                    case.write.substitute_bindings(&bindings).force_evals()?,
+                    case.step.substitute_bindings(&bindings).force_evals()?,
+                    case.next.substitute_bindings(&bindings).force_evals()?
                 )))
             }
             Statement::Block{statements} => {
@@ -260,55 +260,28 @@ impl<'nsa> Machine<'nsa> {
         for statement in program.statements.iter() {
             let mut scope = Scope::new();
             if let Some((write, step, next)) = statement.type_check_next_case(program, &self.state, &self.tape[self.head], &mut scope)? {
-                if let Expr::Eval{open_paren, lhs, rhs} = write {
-                    match *lhs {
-                        Expr::Atom(Atom::Integer{value: lhs_value, ..}) => {
-                            match *rhs {
-                                Expr::Atom(Atom::Integer{value: rhs_value, ..}) => {
-                                    self.tape[self.head] = Expr::Atom(Atom::Integer {
-                                        symbol: open_paren,
-                                        value: lhs_value + rhs_value,
-                                    })
-                                }
-                                _ => {
-                                    eprintln!("{loc}: ERROR: right hand side value must be an integer", loc = rhs.loc());
-                                    return Err(());
-                                }
-                            }
-                        }
-                        _ => {
-                            eprintln!("{loc}: ERROR: left hand side value must be an integer", loc = lhs.loc());
+                self.tape[self.head] = write.force_evals()?;
+                let step = step.expect_atom()?.expect_symbols()?;
+                match step.name {
+                    "<-" => {
+                        if self.head == 0 {
+                            eprintln!("{loc}: ERROR: tape underflow", loc = step.loc);
                             return Err(());
                         }
+                        self.head -= 1;
                     }
-                } else {
-                    self.tape[self.head] = write;
-                }
-                if let Expr::Atom(Atom::Symbol(step)) = step {
-                    match step.name {
-                        "<-" => {
-                            if self.head == 0 {
-                                eprintln!("{loc}: ERROR: tape underflow", loc = step.loc);
-                                return Err(());
-                            }
-                            self.head -= 1;
-                        }
-                        "->" => {
-                            self.head += 1;
-                            if self.head >= self.tape.len() {
-                                self.tape.push(self.tape_default.clone());
-                            }
-                        }
-                        "." => {}
-                        "!" => self.print(),
-                        _ => {
-                            eprintln!("{loc}: ERROR: step is neither -> nor <-", loc = step.loc);
-                            return Err(())
+                    "->" => {
+                        self.head += 1;
+                        if self.head >= self.tape.len() {
+                            self.tape.push(self.tape_default.clone());
                         }
                     }
-                } else {
-                    eprintln!("{loc}: ERROR: step must be an atom", loc = step.loc());
-                    return Err(())
+                    "." => {}
+                    "!" => self.print(),
+                    _ => {
+                        eprintln!("{loc}: ERROR: unknown step action {step}", loc = step.loc);
+                        return Err(())
+                    }
                 }
                 self.state = next;
                 self.halt = false;

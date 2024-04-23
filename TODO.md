@@ -37,7 +37,7 @@
   - [ ] Forbid in Pattern Matching
   - [ ] Forbid in Tapes
   - [ ] Forbid in Set Definitions
-  - [ ] Always Force in Write, Step and Next
+  - [x] Always Force in Write, Step and Next
 - [ ] More Magical Sets
   - [ ] Real
   - [ ] Boolean

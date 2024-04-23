@@ -205,7 +205,7 @@ impl<'nsa> Lexer<'nsa> {
         for (i, name) in expected_names.iter().enumerate() {
             if i == 0 {
                 let _ = write!(&mut buffer, "{name}");
-            } if i + 1 == expected_names.len() {
+            } else if i + 1 == expected_names.len() {
                 let _ = write!(&mut buffer, ", or {name}");
             } else {
                 let _ = write!(&mut buffer, ", {name}");
