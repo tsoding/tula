@@ -548,18 +548,6 @@ struct Command {
 
 const COMMANDS: &[Command] = &[
     Command {
-        name: "debug",
-        description: "Just debug some shit",
-        signature: "",
-        run: |_command, _program_name, _arg| {
-            let source = "(1 (2 3) 4)";
-            let mut lexer = Lexer::new(&source, file!());
-            let expr = Expr::parse(&mut lexer)?;
-            println!("{}", NormExpr(&expr));
-            Ok(())
-        }
-    },
-    Command {
         name: "run",
         description: "Run the Tula Program",
         signature: "<input.tula>",

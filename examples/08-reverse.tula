@@ -1,0 +1,22 @@
+let Alpha { a b c }
+
+trace Entry { % a b c a b c & _ }
+
+case Entry % % -> Init
+
+for :a in Alpha
+case Init :a :a -> Init
+case Init  &  & <- Pick
+
+case Pick & & <- Pick
+for :a in Alpha {
+    case Pick      :a  & -> (Pick :a)
+    case (Pick :a)  &  & -> (Pick :a)
+
+    for :b in Alpha
+    case (Pick :a) :b :b -> (Pick :a)
+
+    case (Pick :a)  _ :a <- Reset
+    case Reset     :a :a <- Reset
+}
+case Reset & & <- Pick

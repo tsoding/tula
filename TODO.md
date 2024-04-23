@@ -33,6 +33,10 @@
   for a in s
   ```
   This is basically an easier version of Union Sets
+- [ ] Anonymous sets
+  ```tule
+  for s in {a b c}
+  ```
 - [ ] Finish off the Eval feature
   - [ ] Forbid in Pattern Matching
   - [ ] Forbid in Tapes
@@ -41,19 +45,18 @@
 - [ ] More Magical Sets
   - [ ] Real
   - [ ] Boolean
-  - [ ] Any
-      - Finite set of all the used expressions in the program.
-      - Useful for skipping anything
+    - Could be user defined
+    ```tula
+    let Boolean { true false }
+    ```
   - [ ] Step
-      - Set of all possible Step actions like `->`, `<-`, `.`, `!`, etc
-  - [ ] State
-      - Set of all expressions that are used as State of the problem
-      - Useful for defining "Callbacks"
+    - Could be user defined
+    - Set of all possible Step actions like `->`, `<-`, `.`, `!`, etc
 
 # Examples
 
 - [x] Fib
-- [ ] Reverse string
+- [x] Reverse string
 - [ ] Brainfuck Interpreter
 - [ ] Universal Turing Machine
 - [ ] Lambda Calc interpreter
@@ -71,3 +74,14 @@
   case I 0 1 -> I
   case I 1 0 -> I
   ```
+  - I'm indecisive on this one because it's unclear what types `a` and
+    `b` should be in this case
+- [ ] Magical set `Any`
+  - Finite set of all the used expressions in the program.
+  - Useful for skipping anything
+  - I'm indecisive on this one because with this set it is easy to
+    make overlapping cases which we plan to actually forbid
+- [ ] Magical set `State`
+  - Set of all expressions that are used as State of the problem
+  - Useful for defining "Callbacks"
+  - Actually such Set might end up recursive
