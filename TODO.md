@@ -38,6 +38,17 @@
   - [ ] Forbid in Tapes
   - [ ] Forbid in Set Definitions
   - [ ] Always Force in Write, Step and Next
+- [ ] More Magical Sets
+  - [ ] Real
+  - [ ] Boolean
+  - [ ] Any
+      - Finite set of all the used expressions in the program.
+      - Useful for skipping anything
+  - [ ] Step
+      - Set of all possible Step actions like `->`, `<-`, `.`, `!`, etc
+  - [ ] State
+      - Set of all expressions that are used as State of the problem
+      - Useful for defining "Callbacks"
 
 # Examples
 
