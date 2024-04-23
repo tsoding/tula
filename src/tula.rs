@@ -20,6 +20,11 @@ struct ScopedCase<'nsa> {
 }
 
 impl<'nsa> ScopedCase<'nsa> {
+    fn intersects(&self, other: &ScopedCase<'nsa>, sets: &Sets<'nsa>) -> bool {
+        self.case.state.intersects(sets, &self.scope, &other.case.state, &other.scope)
+            && self.case.read.intersects(sets, &self.scope, &other.case.read, &other.scope)
+    }
+
     fn type_check_next_case(&self, sets: &Sets<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
         let mut bindings = HashMap::new();
 
@@ -531,6 +536,19 @@ const COMMANDS: &[Command] = &[
             })?;
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
             let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
+
+            for i in 0..scoped_cases.len() {
+                for j in i+1..scoped_cases.len() {
+                    let a = &scoped_cases[i];
+                    let b = &scoped_cases[j];
+                    if a.intersects(b, &sets) {
+                        eprintln!("{loc}: ERROR: case overlaps with another case defined before", loc = &b.case.keyword.loc);
+                        eprintln!("{loc}: NOTE: the overlap happens with this one", loc = &a.case.keyword.loc);
+                        return Err(())
+                    }
+                }
+            }
+
             let program = Program{sets, scoped_cases, runs};
 
             for run in &program.runs {

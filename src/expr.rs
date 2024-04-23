@@ -1,7 +1,7 @@
 use lexer::*;
 use std::fmt;
 use std::collections::HashMap;
-use super::{Result, Scope};
+use super::{Result, Scope, Sets, set_contains_value};
 use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone)]
@@ -11,6 +11,13 @@ pub enum Atom<'nsa> {
         value: i32,
         symbol: Symbol<'nsa>,
     },
+}
+
+fn atom_as_var<'nsa, 'cia>(atom: &Atom<'nsa>, scope: &'cia Scope<'nsa>) -> Option<&'cia Symbol<'nsa>> {
+    match atom {
+        Atom::Symbol(symbol) => scope.get(symbol),
+        Atom::Integer{..} => None,
+    }
 }
 
 impl<'nsa> Atom<'nsa> {
@@ -347,4 +354,73 @@ impl<'nsa> Expr<'nsa> {
             }
         }
     }
+    pub fn intersects(&self, sets: &Sets<'nsa>, self_scope: &Scope<'nsa>, other: &Expr<'nsa>, other_scope: &Scope<'nsa>) -> bool {
+        match self {
+            Self::Atom(self_atom) => {
+                match other {
+                    Self::Atom(other_atom) => {
+                        match (atom_as_var(self_atom, self_scope), atom_as_var(other_atom, other_scope)) {
+                            (None, None) => self_atom == other_atom,
+                            (Some(self_set), None) => {
+                                set_contains_value(sets, self_set, other).expect("The set is already checked to exist")
+                            }
+                            (None, Some(other_set)) => {
+                                set_contains_value(sets, other_set, self).expect("The set is already checked to exist")
+                            }
+                            (Some(self_set), Some(other_set)) => {
+                                sets_intersect(sets, self_set, other_set)
+                            }
+                        }
+                    }
+                    Self::List{..} => false,
+                    Self::Eval{..} => unreachable!("Evals are not allowed in the input of the case"),
+                }
+            },
+            Self::Eval{..} => unreachable!("Evals are not allowed in the input of the case"),
+            Self::List{items: self_items, ..} => {
+                match other {
+                    Self::List{items: other_items, ..} => {
+                        if self_items.len() == other_items.len() {
+                            self_items.iter()
+                                .zip(other_items.iter())
+                                .all(|(a, b)| a.intersects(sets, self_scope, b, other_scope))
+                        } else {
+                            false
+                        }
+                    },
+                    Self::Eval{..} => unreachable!("Evals are not allowed in the input of the case"),
+                    Self::Atom(..) => false
+                }
+            }
+        }
+    }
+}
+
+fn sets_intersect<'nsa>(sets: &Sets<'nsa>, self_set: &Symbol<'nsa>, other_set: &Symbol<'nsa>) -> bool {
+    if self_set == other_set {
+        return true;
+    }
+
+    if self_set.name == "Integer" {
+        for element in sets.get(other_set).expect("The set is already checked to exist") {
+            if let Expr::Atom(Atom::Integer{..}) = element {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    if other_set.name == "Integer" {
+        for element in sets.get(self_set).expect("The set is already checked to exist") {
+            if let Expr::Atom(Atom::Integer{..}) = element {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    sets.get(self_set).expect("The set is already checked to exist")
+        .intersection(sets.get(other_set).expect("The set is already checked to exist"))
+        .next()
+        .is_some()
 }

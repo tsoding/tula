@@ -21,7 +21,7 @@
 - [x] Error out on the case not using all the variables in the scope
 - [x] Type check cases before execusion
 - [x] `--no-expr` flag for `expand` subcommand
-- [ ] Check for unreachable cases
+- [x] Check for unreachable cases
   - Check Sets of Cases overlapping on State and Read
 - [ ] Union sets
   ```tula
