@@ -49,21 +49,38 @@ impl<'nsa> ScopedCase<'nsa> {
     }
 
     fn expand(&self, sets: &Sets<'nsa>, normalize: bool) -> Result<()> {
-        for (var, set) in &self.scope {
-            for element in &set.expand(sets)? {
-                let Case{keyword, state, read, write, step, next} = self.case.substitute_var(*var, element.clone());
-                let write = write.clone().force_evals()?;
-                let step = step.clone().force_evals()?;
-                let next = next.clone().force_evals()?;
-                if normalize {
-                    let state = NormExpr(&state);
-                    let read = NormExpr(&read);
-                    let write = NormExpr(&write);
-                    let step = NormExpr(&step);
-                    let next = NormExpr(&next);
-                    println!("{keyword} {state} {read} {write} {step} {next}");
-                } else {
-                    println!("{keyword} {state} {read} {write} {step} {next}");
+        if self.scope.is_empty() {
+            let Case{keyword, state, read, write, step, next} = self.case.clone();
+            let write = write.clone().force_evals()?;
+            let step = step.clone().force_evals()?;
+            let next = next.clone().force_evals()?;
+            if normalize {
+                let state = NormExpr(&state);
+                let read = NormExpr(&read);
+                let write = NormExpr(&write);
+                let step = NormExpr(&step);
+                let next = NormExpr(&next);
+                println!("{keyword} {state} {read} {write} {step} {next}");
+            } else {
+                println!("{keyword} {state} {read} {write} {step} {next}");
+            }
+        } else {
+            for (var, set) in &self.scope {
+                for element in &set.expand(sets)? {
+                    let Case{keyword, state, read, write, step, next} = self.case.substitute_var(*var, element.clone());
+                    let write = write.clone().force_evals()?;
+                    let step = step.clone().force_evals()?;
+                    let next = next.clone().force_evals()?;
+                    if normalize {
+                        let state = NormExpr(&state);
+                        let read = NormExpr(&read);
+                        let write = NormExpr(&write);
+                        let step = NormExpr(&step);
+                        let next = NormExpr(&next);
+                        println!("{keyword} {state} {read} {write} {step} {next}");
+                    } else {
+                        println!("{keyword} {state} {read} {write} {step} {next}");
+                    }
                 }
             }
         }
@@ -319,7 +336,7 @@ impl<'nsa> Run<'nsa> {
                 print!("{expr}");
             }
         }
-        print!("}}");
+        println!("}}");
     }
 }
 
