@@ -25,7 +25,7 @@ fn check_unreachable_cases<'nsa>(scoped_cases: &[ScopedCase<'nsa>], sets: &Sets<
         for j in i+1..scoped_cases.len() {
             let a = &scoped_cases[i];
             let b = &scoped_cases[j];
-            if a.intersects(b, sets) {
+            if a.intersects(b, sets)? {
                 eprintln!("{loc}: ERROR: case overlaps with another case defined before", loc = &b.case.keyword.loc);
                 eprintln!("{loc}: NOTE: the overlap happens with this one", loc = &a.case.keyword.loc);
                 return Err(())
@@ -36,9 +36,9 @@ fn check_unreachable_cases<'nsa>(scoped_cases: &[ScopedCase<'nsa>], sets: &Sets<
 }
 
 impl<'nsa> ScopedCase<'nsa> {
-    fn intersects(&self, other: &ScopedCase<'nsa>, sets: &Sets<'nsa>) -> bool {
-        self.case.state.intersects(sets, &self.scope, &other.case.state, &other.scope)
-            && self.case.read.intersects(sets, &self.scope, &other.case.read, &other.scope)
+    fn intersects(&self, other: &ScopedCase<'nsa>, sets: &Sets<'nsa>) -> Result<bool> {
+        Ok(self.case.state.intersects(sets, &self.scope, &other.case.state, &other.scope)?
+           && self.case.read.intersects(sets, &self.scope, &other.case.read, &other.scope)?)
     }
 
     fn type_check_next_case(&self, sets: &Sets<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
@@ -53,7 +53,7 @@ impl<'nsa> ScopedCase<'nsa> {
 
         for (var, set) in self.scope.iter() {
             if let Some(value) = bindings.get(var) {
-                if !set_contains_value(sets, set, value)? {
+                if !set.contains(sets, value)? {
                     return Ok(None)
                 }
             } else {
@@ -70,29 +70,21 @@ impl<'nsa> ScopedCase<'nsa> {
 
     fn expand(&self, sets: &Sets<'nsa>, normalize: bool) -> Result<()> {
         for (var, set) in &self.scope {
-            if let Some(exprs) = sets.get(&set) {
-                for expr in exprs {
-                    let Case{keyword, state, read, write, step, next} = self.case.substitute_var(*var, expr.clone());
-                    let write = write.clone().force_evals()?;
-                    let step = step.clone().force_evals()?;
-                    let next = next.clone().force_evals()?;
-                    if normalize {
-                        let state = NormExpr(&state);
-                        let read = NormExpr(&read);
-                        let write = NormExpr(&write);
-                        let step = NormExpr(&step);
-                        let next = NormExpr(&next);
-                        println!("{keyword} {state} {read} {write} {step} {next}");
-                    } else {
-                        println!("{keyword} {state} {read} {write} {step} {next}");
-                    }
+            for expr in &set.elements(sets)? {
+                let Case{keyword, state, read, write, step, next} = self.case.substitute_var(*var, expr.clone());
+                let write = write.clone().force_evals()?;
+                let step = step.clone().force_evals()?;
+                let next = next.clone().force_evals()?;
+                if normalize {
+                    let state = NormExpr(&state);
+                    let read = NormExpr(&read);
+                    let write = NormExpr(&write);
+                    let step = NormExpr(&step);
+                    let next = NormExpr(&next);
+                    println!("{keyword} {state} {read} {write} {step} {next}");
+                } else {
+                    println!("{keyword} {state} {read} {write} {step} {next}");
                 }
-            } else if MAGICAL_SETS.contains(&set.name) {
-                eprintln!("{loc}: ERROR: cannot expand magical set {set} because it's too big", loc = set.loc);
-                return Err(())
-            } else {
-                eprintln!("{loc}: ERROR: unknown set {name}", loc = set.loc, name = set.name);
-                return Err(())
             }
         }
         Ok(())
@@ -132,7 +124,7 @@ enum Statement<'nsa> {
     },
     For {
         var: Symbol<'nsa>,
-        set: Symbol<'nsa>,
+        set: SetExpr<'nsa>,
         body: Box<Statement<'nsa>>,
     }
 }
@@ -160,39 +152,18 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
     }
 }
 
-type Scope<'nsa> = HashMap<Symbol<'nsa>, Symbol<'nsa>>;
+type Sets<'nsa>  = HashMap<Symbol<'nsa>, SetExpr<'nsa>>;
+type Scope<'nsa> = HashMap<Symbol<'nsa>, SetExpr<'nsa>>;
 const MAGICAL_SETS: &[&str] = &["Integer"];
 
-fn set_contains_value(sets: &Sets<'_>, set: &Symbol<'_>, value: &Expr<'_>) -> Result<bool> {
-    if let Some(set_values) = sets.get(set) {
-        Ok(set_values.contains(value))
-    } else {
-        match set.name {
-            "Integer" => {
-                match value {
-                    Expr::Atom(Atom::Integer{..}) => Ok(true),
-                    _ => Ok(false),
-                }
-            }
-            _ => {
-                eprintln!("{loc}: ERROR: unknown set {set}", loc = set.loc);
-                Err(())
-            }
-        }
-    }
-}
-
 impl<'nsa> Statement<'nsa> {
+    // TODO: implement a step that checks that all SetExpr::Named refer to existing sets
+    // TODO: implement a step that checks for circular definitions of the sets
     fn compile_to_cases(&self, sets: &Sets<'nsa>, scope: &mut Scope<'nsa>, scoped_cases: &mut Vec<ScopedCase<'nsa>>) -> Result<()> {
         match self {
             Statement::Case(case) => {
                 let mut unused_vars = vec![];
-                for (var, set) in scope.iter() {
-                    if !(sets.contains_key(set) || MAGICAL_SETS.contains(&set.name)) {
-                        eprintln!("{loc}: ERROR: {set} does not exists", loc = set.loc);
-                        return Err(())
-                    }
-
+                for (var, _) in scope.iter() {
                     if case.state.uses_var(var).or_else(|| case.read.uses_var(var)).is_none() {
                         unused_vars.push(var);
                     }
@@ -222,7 +193,7 @@ impl<'nsa> Statement<'nsa> {
                     println!("{loc}: NOTE: the shadowed name is located here", loc = shadowed_var.loc);
                     return Err(())
                 }
-                scope.insert(*var, *set);
+                scope.insert(*var, set.clone());
                 let result = body.compile_to_cases(sets, scope, scoped_cases);
                 scope.remove(var);
                 result
@@ -373,7 +344,79 @@ impl<'nsa> Run<'nsa> {
     }
 }
 
-type Sets<'nsa> = HashMap<Symbol<'nsa>, HashSet<Expr<'nsa>>>;
+#[derive(Debug, Clone)]
+pub enum SetExpr<'nsa> {
+    Named(Symbol<'nsa>),
+    Anonymous {
+        elements: HashSet<Expr<'nsa>>
+    },
+    Union {
+        lhs: Box<SetExpr<'nsa>>,
+        rhs: Box<SetExpr<'nsa>>,
+    },
+    Diff {
+        lhs: Box<SetExpr<'nsa>>,
+        rhs: Box<SetExpr<'nsa>>,
+    }
+}
+
+impl<'nsa> fmt::Display for SetExpr<'nsa> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Named(name) => write!(f, "{name}"),
+            Self::Anonymous {elements} => {
+                write!(f, "{{")?;
+                for (i, element) in elements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{element}")?;
+                }
+                write!(f, "}}")
+            }
+            Self::Union {lhs, rhs} => write!(f, "{lhs} + {rhs}"),
+            Self::Diff {lhs, rhs} => write!(f, "{lhs} - {rhs}"),
+        }
+    }
+}
+
+impl<'nsa> SetExpr<'nsa> {
+    fn parse(_lexer: &mut Lexer<'nsa>) -> Result<Self> {
+        todo!()
+    }
+
+    fn contains(&self, sets: &Sets<'nsa>, element: &Expr<'nsa>) -> Result<bool> {
+        match self {
+            Self::Union{lhs, rhs} => Ok(lhs.contains(sets, element)? || rhs.contains(sets, element)?),
+            Self::Diff{lhs, rhs} => Ok(lhs.contains(sets, element)? && !rhs.contains(sets, element)?),
+            Self::Anonymous{elements} => Ok(elements.contains(element)),
+            Self::Named(name) => {
+                // TODO: check the presence of all the Set name upfront
+                // And crash in here if the name is not contained within the sets tabl
+                if let Some(set) = sets.get(name)  {
+                    set.contains(sets, element)
+                } else if name.name == "Integer" {
+                    if let Expr::Atom(Atom::Integer{..}) = element {
+                        Ok(true)
+                    } else {
+                        Ok(false)
+                    }
+                } else {
+                    eprintln!("{loc}: ERROR: set {name} is not defined", loc = name.loc);
+                    Err(())
+                }
+            }
+        }
+    }
+
+    fn intersects(&self, _sets: &Sets<'nsa>, _other: &SetExpr<'nsa>) -> Result<bool> {
+        todo!()
+    }
+
+    fn elements(&self, _sets: &Sets<'nsa>) -> Result<HashSet<Expr<'nsa>>> {
+        todo!()
+    }
+}
 
 #[derive(Default)]
 struct Program<'nsa> {
@@ -436,23 +479,12 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
                 }
             }
             let _ = lexer.expect_symbols(&["in"])?;
-            let set = match Expr::parse(lexer)? {
-                Expr::Atom(Atom::Symbol(symbol)) => symbol,
-                Expr::Atom(Atom::Integer{symbol: Symbol{loc, ..}, ..}) => {
-                    eprintln!("{loc}: ERROR: Integers may not be used as set names");
-                    return Err(())
-                }
-                Expr::Eval{open_paren: Symbol{loc, ..}, ..} |
-                Expr::List{open_paren: Symbol{loc, ..}, ..} => {
-                    eprintln!("{loc}: ERROR: Set must be just a name");
-                    return Err(())
-                }
-            };
+            let set = SetExpr::parse(lexer)?;
             let mut result = parse_statement(lexer)?;
             for var in vars.iter().rev() {
                 result = Statement::For{
                     var: var.clone(),
-                    set,
+                    set: set.clone(),
                     body: Box::new(result)
                 }
             }
@@ -496,7 +528,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
                     eprintln!("{loc}: NOTE: first definition located here", loc = orig_name.loc);
                     return Err(())
                 }
-                sets.insert(name, parse_set_of_exprs(lexer)?);
+                sets.insert(name, SetExpr::parse(lexer)?);
             }
             _ => {
                 eprintln!("{loc}: ERROR: unknown keyword {name}", loc = key.loc, name = key.name);

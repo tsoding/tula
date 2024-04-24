@@ -47,7 +47,7 @@
   - [ ] Step
     - Could be user defined
     - Set of all possible Step actions like `->`, `<-`, `.`, `!`, etc
-- [ ] Fix emoji rendering in the trace
+- [x] Fix emoji rendering in the trace
 
 # Examples
 

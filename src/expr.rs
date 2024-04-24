@@ -1,7 +1,7 @@
 use super::lexer::*;
 use std::fmt;
 use std::collections::HashMap;
-use super::{Result, Scope, Sets, set_contains_value};
+use super::{Result, Scope, Sets, SetExpr};
 use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ pub enum Atom<'nsa> {
     },
 }
 
-fn atom_as_var<'nsa, 'cia>(atom: &Atom<'nsa>, scope: &'cia Scope<'nsa>) -> Option<&'cia Symbol<'nsa>> {
+fn atom_as_var<'nsa, 'cia>(atom: &Atom<'nsa>, scope: &'cia Scope<'nsa>) -> Option<&'cia SetExpr<'nsa>> {
     match atom {
         Atom::Symbol(symbol) => scope.get(symbol),
         Atom::Integer{..} => None,
@@ -355,25 +355,25 @@ impl<'nsa> Expr<'nsa> {
         }
     }
 
-    pub fn intersects(&self, sets: &Sets<'nsa>, self_scope: &Scope<'nsa>, other: &Expr<'nsa>, other_scope: &Scope<'nsa>) -> bool {
+    pub fn intersects(&self, sets: &Sets<'nsa>, self_scope: &Scope<'nsa>, other: &Expr<'nsa>, other_scope: &Scope<'nsa>) -> Result<bool> {
         match self {
             Self::Atom(self_atom) => {
                 match other {
                     Self::Atom(other_atom) => {
                         match (atom_as_var(self_atom, self_scope), atom_as_var(other_atom, other_scope)) {
-                            (None, None) => self_atom == other_atom,
+                            (None, None) => Ok(self_atom == other_atom),
                             (Some(self_set), None) => {
-                                set_contains_value(sets, self_set, other).expect("The set is already checked to exist")
+                                self_set.contains(sets, other)
                             }
                             (None, Some(other_set)) => {
-                                set_contains_value(sets, other_set, self).expect("The set is already checked to exist")
+                                other_set.contains(sets, self)
                             }
                             (Some(self_set), Some(other_set)) => {
-                                sets_intersect(sets, self_set, other_set)
+                                self_set.intersects(sets, other_set)
                             }
                         }
                     }
-                    Self::List{..} => false,
+                    Self::List{..} => Ok(false),
                     Self::Eval{..} => unreachable!("Evals are not allowed in the input of the case"),
                 }
             },
@@ -382,46 +382,18 @@ impl<'nsa> Expr<'nsa> {
                 match other {
                     Self::List{items: other_items, ..} => {
                         if self_items.len() == other_items.len() {
-                            self_items.iter()
-                                .zip(other_items.iter())
-                                .all(|(a, b)| a.intersects(sets, self_scope, b, other_scope))
-                        } else {
-                            false
+                            for (a, b) in self_items.iter().zip(other_items.iter()) {
+                                if !a.intersects(sets, self_scope, b, other_scope)? {
+                                    return Ok(false)
+                                }
+                            }
                         }
+                        Ok(true)
                     },
                     Self::Eval{..} => unreachable!("Evals are not allowed in the input of the case"),
-                    Self::Atom(..) => false
+                    Self::Atom(..) => Ok(false)
                 }
             }
         }
     }
-}
-
-fn sets_intersect<'nsa>(sets: &Sets<'nsa>, self_set: &Symbol<'nsa>, other_set: &Symbol<'nsa>) -> bool {
-    if self_set == other_set {
-        return true;
-    }
-
-    if self_set.name == "Integer" {
-        for element in sets.get(other_set).expect("The set is already checked to exist") {
-            if let Expr::Atom(Atom::Integer{..}) = element {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    if other_set.name == "Integer" {
-        for element in sets.get(self_set).expect("The set is already checked to exist") {
-            if let Expr::Atom(Atom::Integer{..}) = element {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    sets.get(self_set).expect("The set is already checked to exist")
-        .intersection(sets.get(other_set).expect("The set is already checked to exist"))
-        .next()
-        .is_some()
 }
