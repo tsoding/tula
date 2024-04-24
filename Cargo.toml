@@ -1,0 +1,13 @@
+[package]
+name = "tula-beta"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "tula"
+path = "src/tula.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+unicode-width = "0.1.11"

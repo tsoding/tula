@@ -1,4 +1,4 @@
-use lexer::*;
+use super::lexer::*;
 use std::fmt;
 use std::collections::HashMap;
 use super::{Result, Scope, Sets, set_contains_value};

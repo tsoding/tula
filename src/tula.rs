@@ -7,6 +7,7 @@ use std::fmt::{self, Write};
 use std::env;
 use std::process::ExitCode;
 use std::collections::{HashMap, HashSet};
+use unicode_width::UnicodeWidthStr;
 
 use lexer::*;
 use expr::*;
@@ -298,16 +299,14 @@ impl<'nsa> Machine<'nsa> {
                 head_end = buffer.len();
             }
         }
+        //                     head_end
+        //                     v
+        // "State: aaa bbb cccc dddd"
+        //                 ^
+        //                 head_begin
         println!("{buffer}");
-        // TODO: use the field width formating magic or something like that
-        for _ in 0..head_begin {
-            print!(" ");
-        }
-        print!("^");
-        for _ in head_begin+1..head_end {
-            print!("~");
-        }
-        println!();
+        print!("{pad:width$}", pad = "", width = UnicodeWidthStr::width(&buffer[0..head_begin]));
+        println!("{x:~<width$}", x = "^", width = UnicodeWidthStr::width(&buffer[head_begin..head_end]));
     }
 }
 
