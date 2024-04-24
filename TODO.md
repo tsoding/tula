@@ -23,12 +23,12 @@
 - [x] `--no-expr` flag for `expand` subcommand
 - [x] Check for unreachable cases
   - Check Sets of Cases overlapping on State and Read
-- [ ] Union Operations
+- [x] Union Operations
   ```tula
   for _ in Integer + Bool
   for _ in Integer - Bool
   ```
-- [ ] Anonymous sets
+- [x] Anonymous sets
   ```tule
   for s in {a b c}
   ```
