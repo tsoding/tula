@@ -350,6 +350,7 @@ pub enum SetExpr<'nsa> {
     Anonymous {
         elements: HashSet<Expr<'nsa>>
     },
+    Integer(Symbol<'nsa>),
     Union {
         lhs: Box<SetExpr<'nsa>>,
         rhs: Box<SetExpr<'nsa>>,
@@ -364,6 +365,7 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Named(name) => write!(f, "{name}"),
+            Self::Integer(_) => write!(f, "Integer"),
             Self::Anonymous {elements} => {
                 write!(f, "{{")?;
                 for (i, element) in elements.iter().enumerate() {
@@ -381,8 +383,53 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
 }
 
 impl<'nsa> SetExpr<'nsa> {
-    fn parse(_lexer: &mut Lexer<'nsa>) -> Result<Self> {
-        todo!()
+    fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
+        let Some(symbol) = lexer.peek_symbol() else {
+            eprintln!("{loc}: ERROR: expected symbol but reached the end of the input", loc = lexer.loc());
+            return Err(())
+        };
+        let lhs = match symbol.name {
+            "{" => Self::Anonymous {
+                elements: parse_set_of_exprs(lexer)?
+            },
+            _ => {
+                let _ = lexer.next_symbol().unwrap();
+                match Atom::from_symbol(symbol) {
+                    Atom::Integer{symbol: Symbol{loc, ..}, ..} => {
+                        eprintln!("{loc}: ERROR: integer is not a set expression");
+                        return Err(())
+                    }
+                    Atom::Symbol(symbol) => if symbol.name == "Integer" {
+                        Self::Integer(symbol)
+                    } else {
+                        Self::Named(symbol)
+                    }
+                }
+            }
+        };
+        if let Some(symbol) = lexer.peek_symbol() {
+            match symbol.name {
+                "+" => {
+                    let _ = lexer.next_symbol().unwrap();
+                    let rhs = SetExpr::parse(lexer)?;
+                    Ok(SetExpr::Union {
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                    })
+                }
+                "-" => {
+                    let _ = lexer.next_symbol().unwrap();
+                    let rhs = SetExpr::parse(lexer)?;
+                    Ok(SetExpr::Diff {
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                    })
+                }
+                _ => Ok(lhs)
+            }
+        } else {
+            Ok(lhs)
+        }
     }
 
     fn contains(&self, sets: &Sets<'nsa>, element: &Expr<'nsa>) -> Result<bool> {
@@ -390,17 +437,18 @@ impl<'nsa> SetExpr<'nsa> {
             Self::Union{lhs, rhs} => Ok(lhs.contains(sets, element)? || rhs.contains(sets, element)?),
             Self::Diff{lhs, rhs} => Ok(lhs.contains(sets, element)? && !rhs.contains(sets, element)?),
             Self::Anonymous{elements} => Ok(elements.contains(element)),
+            Self::Integer(_)=> {
+                if let Expr::Atom(Atom::Integer{..}) = element {
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
             Self::Named(name) => {
                 // TODO: check the presence of all the Set name upfront
                 // And crash in here if the name is not contained within the sets tabl
                 if let Some(set) = sets.get(name)  {
                     set.contains(sets, element)
-                } else if name.name == "Integer" {
-                    if let Expr::Atom(Atom::Integer{..}) = element {
-                        Ok(true)
-                    } else {
-                        Ok(false)
-                    }
                 } else {
                     eprintln!("{loc}: ERROR: set {name} is not defined", loc = name.loc);
                     Err(())
@@ -409,8 +457,36 @@ impl<'nsa> SetExpr<'nsa> {
         }
     }
 
-    fn intersects(&self, _sets: &Sets<'nsa>, _other: &SetExpr<'nsa>) -> Result<bool> {
+    fn contains_integers(&self, sets: &Sets<'nsa>) -> Result<bool> {
         todo!()
+    }
+
+    fn intersects(&self, sets: &Sets<'nsa>, other: &SetExpr<'nsa>) -> Result<bool> {
+        match self {
+            Self::Anonymous{elements} => {
+                for element in elements {
+                    if other.contains(sets, element)? {
+                        return Ok(true)
+                    }
+                }
+                Ok(false)
+            }
+            Self::Integer(symbol) => other.contains_integers(sets),
+            Self::Named(name) => {
+                if let Some(inner_set) = sets.get(name) {
+                    inner_set.intersects(sets, other)
+                } else {
+                    eprintln!("{loc}: ERROR: unknown set {name}", loc = name.loc);
+                    Err(())
+                }
+            }
+            Self::Union{lhs, rhs} => {
+                Ok(lhs.intersects(sets, other)? || rhs.intersects(sets, other)?)
+            },
+            Self::Diff{lhs, rhs} => {
+                todo!()
+            }
+        }
     }
 
     fn elements(&self, _sets: &Sets<'nsa>) -> Result<HashSet<Expr<'nsa>>> {
