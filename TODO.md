@@ -23,16 +23,11 @@
 - [x] `--no-expr` flag for `expand` subcommand
 - [x] Check for unreachable cases
   - Check Sets of Cases overlapping on State and Read
-- [ ] Union sets
+- [ ] Union Operations
   ```tula
   for _ in Integer + Bool
+  for _ in Integer - Bool
   ```
-- [ ] Sets of sets
-  ```tula
-  for s in Sets
-  for a in s
-  ```
-  This is basically an easier version of Union Sets
 - [ ] Anonymous sets
   ```tule
   for s in {a b c}
@@ -86,3 +81,9 @@
   - Set of all expressions that are used as State of the problem
   - Useful for defining "Callbacks"
   - Actually such Set might end up recursive
+- [ ] Sets of sets
+  ```tula
+  for s in Sets
+  for a in s
+  ```
+  This is basically an easier version of Union Sets

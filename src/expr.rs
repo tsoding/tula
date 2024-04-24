@@ -354,6 +354,7 @@ impl<'nsa> Expr<'nsa> {
             }
         }
     }
+
     pub fn intersects(&self, sets: &Sets<'nsa>, self_scope: &Scope<'nsa>, other: &Expr<'nsa>, other_scope: &Scope<'nsa>) -> bool {
         match self {
             Self::Atom(self_atom) => {
