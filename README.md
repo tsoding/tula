@@ -168,6 +168,55 @@ Halt: (2 1) (3 2) (4 3) & &
 
 The tape is infinite to the right (but not the left!) and filled with the last symbol. In the example above it's `&`.
 
+## Anonymous Sets
+
+It is not necessary to define the Sets upfront with the `let` keyword. You can use them directly in Universal Quantifiers:
+
+```js
+for n in { a b c } {
+    case S n 0 -> S
+}
+```
+
+## Set operations
+
+You can combine the Sets with Union and Difference operations (`+` and `-` infix operators correspondingly)
+
+```js
+let Emoji { 😳 🍆 🔥 💯 }
+
+// For any Emoji or Integer except 🍆 replace it with 🦀.
+// This effectively makes the program stop at 🍆 'cause there is no case for it.
+for e in Integer + Emoji - { 🍆 } {
+    case Crab e 🦀 -> Crab
+}
+
+trace Crab { 🔥 😳 69 420 🍆 }
+```
+
+The trace of the above program
+
+```
+Crab: 🔥 😳 69 420 🍆
+      ^~
+Crab: 🦀 😳 69 420 🍆
+         ^~
+Crab: 🦀 🦀 69 420 🍆
+            ^~
+Crab: 🦀 🦀 🦀 420 🍆
+               ^~~
+Crab: 🦀 🦀 🦀 🦀 🍆
+                  ^~
+```
+
+This kind of Set Expressions are also allowed in the Set Definitions:
+
+```js
+let Emoji { 😳 🍆 🔥 💯 }
+let Anything_But_Eggplant ( Integer + Emoji - { 🍆 } )  // Parenthesis for clarity
+let Anything_But_Eggplant Integer + Emoji - { 🍆 }  // Also works without parenthesis
+```
+
 ## "Magical" Sets
 
 Tula supports a special "magical" set `Integer` that is infinite
@@ -203,3 +252,29 @@ instantaneously because internally it does not actually generate any
 cases. It treats the Sets as Types and performs an efficient Type
 Checking and Pattern Matching to infer the `<Write>`, `<Step>` and
 `<Next>` based on the current state of the Machine.
+
+You can use `Integer` in Set Expressions:
+
+```js
+// For any Integer except 5 specifically keep moving to the right
+for n in Integer - { 5 }
+case Until_Five n n -> Until_Five
+trace Until_Five { 1 2 3 4 5 6 7 8 }
+```
+
+Trace of the above program
+
+```
+Until_Five: 1 2 3 4 5 6 7 8
+            ^
+Until_Five: 1 2 3 4 5 6 7 8
+              ^
+Until_Five: 1 2 3 4 5 6 7 8
+                ^
+Until_Five: 1 2 3 4 5 6 7 8
+                  ^
+Until_Five: 1 2 3 4 5 6 7 8
+                    ^
+```
+
+This specifically makes the program halt at `5` because it does not have a case for it.
