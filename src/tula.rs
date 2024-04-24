@@ -20,27 +20,7 @@ struct ScopedCase<'nsa> {
     scope: Scope<'nsa>,
 }
 
-fn check_unreachable_cases<'nsa>(scoped_cases: &[ScopedCase<'nsa>], sets: &Sets<'nsa>) -> Result<()> {
-    for i in 0..scoped_cases.len() {
-        for j in i+1..scoped_cases.len() {
-            let a = &scoped_cases[i];
-            let b = &scoped_cases[j];
-            if a.intersects(b, sets)? {
-                eprintln!("{loc}: ERROR: case overlaps with another case defined before", loc = &b.case.keyword.loc);
-                eprintln!("{loc}: NOTE: the overlap happens with this one", loc = &a.case.keyword.loc);
-                return Err(())
-            }
-        }
-    }
-    Ok(())
-}
-
 impl<'nsa> ScopedCase<'nsa> {
-    fn intersects(&self, other: &ScopedCase<'nsa>, sets: &Sets<'nsa>) -> Result<bool> {
-        Ok(self.case.state.intersects(sets, &self.scope, &other.case.state, &other.scope)?
-           && self.case.read.intersects(sets, &self.scope, &other.case.read, &other.scope)?)
-    }
-
     fn type_check_next_case(&self, sets: &Sets<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
         let mut bindings = HashMap::new();
 
@@ -70,8 +50,8 @@ impl<'nsa> ScopedCase<'nsa> {
 
     fn expand(&self, sets: &Sets<'nsa>, normalize: bool) -> Result<()> {
         for (var, set) in &self.scope {
-            for expr in &set.elements(sets)? {
-                let Case{keyword, state, read, write, step, next} = self.case.substitute_var(*var, expr.clone());
+            for element in &set.expand(sets)? {
+                let Case{keyword, state, read, write, step, next} = self.case.substitute_var(*var, element.clone());
                 let write = write.clone().force_evals()?;
                 let step = step.clone().force_evals()?;
                 let next = next.clone().force_evals()?;
@@ -154,7 +134,6 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
 
 type Sets<'nsa>  = HashMap<Symbol<'nsa>, SetExpr<'nsa>>;
 type Scope<'nsa> = HashMap<Symbol<'nsa>, SetExpr<'nsa>>;
-const MAGICAL_SETS: &[&str] = &["Integer"];
 
 impl<'nsa> Statement<'nsa> {
     // TODO: implement a step that checks that all SetExpr::Named refer to existing sets
@@ -383,15 +362,21 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
 }
 
 impl<'nsa> SetExpr<'nsa> {
-    fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
+    fn parse_primary(lexer: &mut Lexer<'nsa>) -> Result<Self> {
         let Some(symbol) = lexer.peek_symbol() else {
             eprintln!("{loc}: ERROR: expected symbol but reached the end of the input", loc = lexer.loc());
             return Err(())
         };
-        let lhs = match symbol.name {
+        let set = match symbol.name {
             "{" => Self::Anonymous {
                 elements: parse_set_of_exprs(lexer)?
             },
+            "(" => {
+                let _ = lexer.next_symbol().unwrap();
+                let inner = Self::parse(lexer)?;
+                lexer.expect_symbols(&[")"])?;
+                inner
+            }
             _ => {
                 let _ = lexer.next_symbol().unwrap();
                 match Atom::from_symbol(symbol) {
@@ -407,29 +392,33 @@ impl<'nsa> SetExpr<'nsa> {
                 }
             }
         };
-        if let Some(symbol) = lexer.peek_symbol() {
+        Ok(set)
+    }
+
+    fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
+        let mut lhs = Self::parse_primary(lexer)?;
+        while let Some(symbol) = lexer.peek_symbol() {
             match symbol.name {
                 "+" => {
                     let _ = lexer.next_symbol().unwrap();
-                    let rhs = SetExpr::parse(lexer)?;
-                    Ok(SetExpr::Union {
+                    let rhs = SetExpr::parse_primary(lexer)?;
+                    lhs = SetExpr::Union {
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
-                    })
+                    }
                 }
                 "-" => {
                     let _ = lexer.next_symbol().unwrap();
-                    let rhs = SetExpr::parse(lexer)?;
-                    Ok(SetExpr::Diff {
+                    let rhs = SetExpr::parse_primary(lexer)?;
+                    lhs = SetExpr::Diff {
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
-                    })
+                    }
                 }
-                _ => Ok(lhs)
+                _ => break
             }
-        } else {
-            Ok(lhs)
         }
+        Ok(lhs)
     }
 
     fn contains(&self, sets: &Sets<'nsa>, element: &Expr<'nsa>) -> Result<bool> {
@@ -457,40 +446,26 @@ impl<'nsa> SetExpr<'nsa> {
         }
     }
 
-    fn contains_integers(&self, sets: &Sets<'nsa>) -> Result<bool> {
-        todo!()
-    }
-
-    fn intersects(&self, sets: &Sets<'nsa>, other: &SetExpr<'nsa>) -> Result<bool> {
+    fn expand(&self, sets: &Sets<'nsa>) -> Result<HashSet<Expr<'nsa>>> {
         match self {
-            Self::Anonymous{elements} => {
-                for element in elements {
-                    if other.contains(sets, element)? {
-                        return Ok(true)
-                    }
-                }
-                Ok(false)
+            Self::Union{lhs, rhs} => Ok(lhs.expand(sets)?.union(&rhs.expand(sets)?).cloned().collect()),
+            Self::Diff{lhs, rhs} => Ok(lhs.expand(sets)?.difference(&rhs.expand(sets)?).cloned().collect()),
+            Self::Anonymous{elements} => Ok(elements.clone()),
+            Self::Integer(Symbol{loc, ..})=> {
+                eprintln!("{loc}: Impossible to expand set Integer: it's too big");
+                Err(())
             }
-            Self::Integer(symbol) => other.contains_integers(sets),
             Self::Named(name) => {
-                if let Some(inner_set) = sets.get(name) {
-                    inner_set.intersects(sets, other)
+                // TODO: check the presence of all the Set name upfront
+                // And crash in here if the name is not contained within the sets tabl
+                if let Some(set) = sets.get(name)  {
+                    set.expand(sets)
                 } else {
-                    eprintln!("{loc}: ERROR: unknown set {name}", loc = name.loc);
+                    eprintln!("{loc}: ERROR: set {name} is not defined", loc = name.loc);
                     Err(())
                 }
             }
-            Self::Union{lhs, rhs} => {
-                Ok(lhs.intersects(sets, other)? || rhs.intersects(sets, other)?)
-            },
-            Self::Diff{lhs, rhs} => {
-                todo!()
-            }
         }
-    }
-
-    fn elements(&self, _sets: &Sets<'nsa>) -> Result<HashSet<Expr<'nsa>>> {
-        todo!()
     }
 }
 
@@ -659,8 +634,6 @@ const COMMANDS: &[Command] = &[
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
             let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
 
-            check_unreachable_cases(&scoped_cases, &sets)?;
-
             let program = Program{sets, scoped_cases, runs};
 
             for run in &program.runs {
@@ -776,7 +749,6 @@ const COMMANDS: &[Command] = &[
 
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&source, &source_path))?;
             let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
-            check_unreachable_cases(&scoped_cases, &sets)?;
 
             for case in &scoped_cases {
                 case.expand(&sets, no_expr)?;

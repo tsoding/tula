@@ -1,7 +1,7 @@
 use super::lexer::*;
 use std::fmt;
 use std::collections::HashMap;
-use super::{Result, Scope, Sets, SetExpr};
+use super::{Result, Scope};
 use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone)]
@@ -11,13 +11,6 @@ pub enum Atom<'nsa> {
         value: i32,
         symbol: Symbol<'nsa>,
     },
-}
-
-fn atom_as_var<'nsa, 'cia>(atom: &Atom<'nsa>, scope: &'cia Scope<'nsa>) -> Option<&'cia SetExpr<'nsa>> {
-    match atom {
-        Atom::Symbol(symbol) => scope.get(symbol),
-        Atom::Integer{..} => None,
-    }
 }
 
 impl<'nsa> Atom<'nsa> {
@@ -350,48 +343,6 @@ impl<'nsa> Expr<'nsa> {
                         true
                     }
                     Expr::Atom(Atom::Symbol(_)) | Expr::Atom(Atom::Integer{..}) | Expr::Eval{..} => false,
-                }
-            }
-        }
-    }
-
-    pub fn intersects(&self, sets: &Sets<'nsa>, self_scope: &Scope<'nsa>, other: &Expr<'nsa>, other_scope: &Scope<'nsa>) -> Result<bool> {
-        match self {
-            Self::Atom(self_atom) => {
-                match other {
-                    Self::Atom(other_atom) => {
-                        match (atom_as_var(self_atom, self_scope), atom_as_var(other_atom, other_scope)) {
-                            (None, None) => Ok(self_atom == other_atom),
-                            (Some(self_set), None) => {
-                                self_set.contains(sets, other)
-                            }
-                            (None, Some(other_set)) => {
-                                other_set.contains(sets, self)
-                            }
-                            (Some(self_set), Some(other_set)) => {
-                                self_set.intersects(sets, other_set)
-                            }
-                        }
-                    }
-                    Self::List{..} => Ok(false),
-                    Self::Eval{..} => unreachable!("Evals are not allowed in the input of the case"),
-                }
-            },
-            Self::Eval{..} => unreachable!("Evals are not allowed in the input of the case"),
-            Self::List{items: self_items, ..} => {
-                match other {
-                    Self::List{items: other_items, ..} => {
-                        if self_items.len() == other_items.len() {
-                            for (a, b) in self_items.iter().zip(other_items.iter()) {
-                                if !a.intersects(sets, self_scope, b, other_scope)? {
-                                    return Ok(false)
-                                }
-                            }
-                        }
-                        Ok(true)
-                    },
-                    Self::Eval{..} => unreachable!("Evals are not allowed in the input of the case"),
-                    Self::Atom(..) => Ok(false)
                 }
             }
         }
