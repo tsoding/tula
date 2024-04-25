@@ -77,6 +77,7 @@ pub enum Expr<'nsa> {
     Eval {
         open_paren: Symbol<'nsa>,
         lhs: Box<Expr<'nsa>>,
+        op: Box<Expr<'nsa>>,
         rhs: Box<Expr<'nsa>>,
     },
     List {
@@ -205,13 +206,32 @@ impl<'nsa> Expr<'nsa> {
                 }
                 Ok(Self::List{open_paren, items: new_items})
             }
-            Self::Eval{open_paren, lhs, rhs} => {
+            Self::Eval{open_paren, lhs, op, rhs} => {
                 let lhs = lhs.expect_atom()?.expect_integer()?;
                 let rhs = rhs.expect_atom()?.expect_integer()?;
-                Ok(Expr::Atom(Atom::Integer {
-                    symbol: open_paren,
-                    value: lhs + rhs,
-                }))
+                let op  = op.expect_atom()?.expect_symbols()?;
+                match op.name {
+                    "+" => Ok(Expr::Atom(Atom::Integer {
+                        symbol: open_paren,
+                        value: lhs + rhs,
+                    })),
+                    "%" => Ok(Expr::Atom(Atom::Integer {
+                        symbol: open_paren,
+                        value: lhs % rhs,
+                    })),
+                    "<" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                        loc: open_paren.loc,
+                        name: if lhs < rhs {
+                            "true"
+                        } else {
+                            "false"
+                        },
+                    }))),
+                    _ => {
+                        eprintln!("{loc}: ERROR: Unexpected Integer operation", loc = op.loc);
+                        Err(())
+                    }
+                }
             }
         }
     }
@@ -243,10 +263,11 @@ impl<'nsa> Expr<'nsa> {
                 }
             }
             Self::Atom(Atom::Integer{..}) => self.clone(),
-            Self::Eval{open_paren, lhs, rhs} => {
+            Self::Eval{open_paren, lhs, op, rhs} => {
                 let lhs = Box::new(lhs.substitute_bindings(bindings));
+                let op  = Box::new(op.substitute_bindings(bindings));
                 let rhs = Box::new(rhs.substitute_bindings(bindings));
-                Self::Eval{open_paren: *open_paren, lhs, rhs}
+                Self::Eval{open_paren: *open_paren, lhs, op, rhs}
             }
             Self::List{open_paren, items} => {
                 let items = items.iter().map(|item| item.substitute_bindings(bindings)).collect();
@@ -260,11 +281,11 @@ impl<'nsa> Expr<'nsa> {
         match symbol.name {
             "[" => {
                 let lhs = Box::new(Expr::Atom(Atom::from_symbol(lexer.parse_symbol()?)));
-                let _ = lexer.expect_symbols(&["+"])?;
+                let op  = Box::new(Expr::Atom(Atom::from_symbol(lexer.parse_symbol()?)));
                 let rhs = Box::new(Expr::Atom(Atom::from_symbol(lexer.parse_symbol()?)));
                 let _ = lexer.expect_symbols(&["]"])?;
                 Ok(Self::Eval {
-                    lhs, rhs, open_paren: symbol
+                    lhs, op, rhs, open_paren: symbol
                 })
             }
             "(" => {

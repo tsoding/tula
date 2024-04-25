@@ -39,6 +39,7 @@
   - [ ] Forbid in Set Definitions
   - [x] Always Force in Write, Step and Next
 - [ ] More Magical Sets
+  - [ ] Byte
   - [ ] Real
   - [ ] Boolean
     - Could be user defined
@@ -51,6 +52,7 @@
 - [ ] Explicitly denote Halt States
   - Useful for catching unreachable states at runtime
 - [ ] Something visual, maybe with Raylib
+- [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
 
 # Examples
 
