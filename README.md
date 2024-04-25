@@ -75,6 +75,7 @@ Swap: (2 1) (2 3) (3 4) &
 Swap: (2 1) (3 2) (3 4) &
                   ^~~~~
 Swap: (2 1) (3 2) (4 3) &
+                        ^
 ```
 
 The Compound Expressions don't really add that much to the Language by themselves. We could've written the above program like this and end up with basically this same result:
