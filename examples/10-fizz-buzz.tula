@@ -1,0 +1,13 @@
+run (FizzBuzz 1) { . }
+
+for i in Integer {
+    case (FizzBuzz i) ... (FizzBuzz100 i [i <= 100])
+    case (FizzBuzz100 i true) ... (FizzBuzz15 i [[i % 3] == 0] [[i % 5] == 0])
+    case (FizzBuzz100 i false) ... Over
+    case (FizzBuzz15 i true true) . FizzBuzz -> (FizzBuzz [i + 1])
+    case (FizzBuzz15 i true false) . Fizz -> (FizzBuzz [i + 1])
+    case (FizzBuzz15 i false true) . Buzz -> (FizzBuzz [i + 1])
+    case (FizzBuzz15 i false false) . i -> (FizzBuzz [i + 1])
+}
+
+case Over ..! Halt

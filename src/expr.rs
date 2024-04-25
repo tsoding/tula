@@ -240,6 +240,14 @@ impl<'nsa> Expr<'nsa> {
                                     "false"
                                 },
                             }))),
+                            "<=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: if lhs <= rhs {
+                                    "true"
+                                } else {
+                                    "false"
+                                },
+                            }))),
                             "==" => Ok(Expr::Atom(Atom::Symbol(Symbol {
                                 loc: open_paren.loc,
                                 name: if lhs == rhs {
