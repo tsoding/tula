@@ -32,6 +32,7 @@
   ```tule
   for s in {a b c}
   ```
+- [x] Fix emoji rendering in the trace
 - [ ] Finish off the Eval feature
   - [ ] Forbid in Pattern Matching
   - [ ] Forbid in Tapes
@@ -47,12 +48,15 @@
   - [ ] Step
     - Could be user defined
     - Set of all possible Step actions like `->`, `<-`, `.`, `!`, etc
-- [x] Fix emoji rendering in the trace
+- [ ] Explicitly denote Halt States
+  - Useful for catching unreachable states at runtime
+- [ ] Something visual, maybe with Raylib
 
 # Examples
 
 - [x] Fib
 - [x] Reverse string
+- [ ] Balanced parenthesis of different kind
 - [ ] Brainfuck Interpreter
 - [ ] Universal Turing Machine
 - [ ] Lambda Calc interpreter

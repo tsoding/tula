@@ -33,7 +33,7 @@ impl<'nsa> ScopedCase<'nsa> {
 
         for (var, set) in self.scope.iter() {
             if let Some(value) = bindings.get(var) {
-                if !set.contains(sets, value)? {
+                if !set.contains(sets, value) {
                     return Ok(None)
                 }
             } else {
@@ -148,8 +148,6 @@ type Sets<'nsa>  = HashMap<Symbol<'nsa>, SetExpr<'nsa>>;
 type Scope<'nsa> = HashMap<Symbol<'nsa>, SetExpr<'nsa>>;
 
 impl<'nsa> Statement<'nsa> {
-    // TODO: implement a step that checks that all SetExpr::Named refer to existing sets
-    // TODO: implement a step that checks for circular definitions of the sets
     fn compile_to_cases(&self, sets: &Sets<'nsa>, scope: &mut Scope<'nsa>, scoped_cases: &mut Vec<ScopedCase<'nsa>>) -> Result<()> {
         match self {
             Statement::Case(case) => {
@@ -374,7 +372,7 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
 }
 
 impl<'nsa> SetExpr<'nsa> {
-    fn parse_primary(lexer: &mut Lexer<'nsa>) -> Result<Self> {
+    fn parse_primary(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<Self> {
         let Some(symbol) = lexer.peek_symbol() else {
             eprintln!("{loc}: ERROR: expected symbol but reached the end of the input", loc = lexer.loc());
             return Err(())
@@ -385,7 +383,7 @@ impl<'nsa> SetExpr<'nsa> {
             },
             "(" => {
                 let _ = lexer.next_symbol().unwrap();
-                let inner = Self::parse(lexer)?;
+                let inner = Self::parse(lexer, sets)?;
                 lexer.expect_symbols(&[")"])?;
                 inner
             }
@@ -399,6 +397,10 @@ impl<'nsa> SetExpr<'nsa> {
                     Atom::Symbol(symbol) => if symbol.name == "Integer" {
                         Self::Integer(symbol)
                     } else {
+                        if !sets.contains_key(&symbol) {
+                            eprintln!("{loc}: ERROR: set {symbol} does not exist", loc = symbol.loc);
+                            return Err(());
+                        }
                         Self::Named(symbol)
                     }
                 }
@@ -407,13 +409,13 @@ impl<'nsa> SetExpr<'nsa> {
         Ok(set)
     }
 
-    fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
-        let mut lhs = Self::parse_primary(lexer)?;
+    fn parse(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<Self> {
+        let mut lhs = Self::parse_primary(lexer, sets)?;
         while let Some(symbol) = lexer.peek_symbol() {
             match symbol.name {
                 "+" => {
                     let _ = lexer.next_symbol().unwrap();
-                    let rhs = SetExpr::parse_primary(lexer)?;
+                    let rhs = SetExpr::parse_primary(lexer, sets)?;
                     lhs = SetExpr::Union {
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
@@ -421,7 +423,7 @@ impl<'nsa> SetExpr<'nsa> {
                 }
                 "-" => {
                     let _ = lexer.next_symbol().unwrap();
-                    let rhs = SetExpr::parse_primary(lexer)?;
+                    let rhs = SetExpr::parse_primary(lexer, sets)?;
                     lhs = SetExpr::Diff {
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
@@ -433,27 +435,22 @@ impl<'nsa> SetExpr<'nsa> {
         Ok(lhs)
     }
 
-    fn contains(&self, sets: &Sets<'nsa>, element: &Expr<'nsa>) -> Result<bool> {
+    fn contains(&self, sets: &Sets<'nsa>, element: &Expr<'nsa>) -> bool {
         match self {
-            Self::Union{lhs, rhs} => Ok(lhs.contains(sets, element)? || rhs.contains(sets, element)?),
-            Self::Diff{lhs, rhs} => Ok(lhs.contains(sets, element)? && !rhs.contains(sets, element)?),
-            Self::Anonymous{elements} => Ok(elements.contains(element)),
+            Self::Union{lhs, rhs} => lhs.contains(sets, element) || rhs.contains(sets, element),
+            Self::Diff{lhs, rhs} => lhs.contains(sets, element) && !rhs.contains(sets, element),
+            Self::Anonymous{elements} => elements.contains(element),
             Self::Integer(_)=> {
                 if let Expr::Atom(Atom::Integer{..}) = element {
-                    Ok(true)
+                    true
                 } else {
-                    Ok(false)
+                    false
                 }
             }
             Self::Named(name) => {
-                // TODO: check the presence of all the Set name upfront
-                // And crash in here if the name is not contained within the sets tabl
-                if let Some(set) = sets.get(name)  {
-                    set.contains(sets, element)
-                } else {
-                    eprintln!("{loc}: ERROR: set {name} is not defined", loc = name.loc);
-                    Err(())
-                }
+                sets.get(name)
+                    .expect("The existence of all Named Set Expressions must be checked upfront")
+                    .contains(sets, element)
             }
         }
     }
@@ -468,14 +465,9 @@ impl<'nsa> SetExpr<'nsa> {
                 Err(())
             }
             Self::Named(name) => {
-                // TODO: check the presence of all the Set name upfront
-                // And crash in here if the name is not contained within the sets tabl
-                if let Some(set) = sets.get(name)  {
-                    set.expand(sets)
-                } else {
-                    eprintln!("{loc}: ERROR: set {name} is not defined", loc = name.loc);
-                    Err(())
-                }
+                sets.get(name)
+                    .expect("The existence of all Named Set Expressions must be checked upfront")
+                    .expand(sets)
             }
         }
     }
@@ -506,7 +498,7 @@ fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>, keyword: Symbol<'nsa>) -> Result<Ca
     Ok(Case{keyword, state, read, write, step, next})
 }
 
-fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
+fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<Statement<'nsa>> {
     let key = lexer.expect_symbols(&["case", "for", "{"])?;
     match key.name {
         "case" => Ok(Statement::Case(parse_case(lexer, key)?)),
@@ -516,7 +508,7 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
                 if symbol.name == "}" {
                     break;
                 }
-                statements.push(parse_statement(lexer)?);
+                statements.push(parse_statement(lexer, sets)?);
             }
             let _ = lexer.expect_symbols(&["}"])?;
             Ok(Statement::Block{statements})
@@ -542,8 +534,8 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Statement<'nsa>> {
                 }
             }
             let _ = lexer.expect_symbols(&["in"])?;
-            let set = SetExpr::parse(lexer)?;
-            let mut result = parse_statement(lexer)?;
+            let set = SetExpr::parse(lexer, sets)?;
+            let mut result = parse_statement(lexer, sets)?;
             for var in vars.iter().rev() {
                 result = Statement::For{
                     var: var.clone(),
@@ -575,7 +567,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
                 runs.push(parse_run(lexer)?);
             }
             "case" | "for" => {
-                statements.push(parse_statement(lexer)?);
+                statements.push(parse_statement(lexer, &sets)?);
             }
             "let" => {
                 lexer.next_symbol();
@@ -586,12 +578,21 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
                         return Err(())
                     }
                 };
+                // TODO: improve extendability of this piece of code.
+                //   If I add more magical sets, it's easy to forget to update this match.
+                match name.name {
+                    "Integer" => {
+                        eprintln!("{loc}: ERROR: redefinition of a magical set {name}", loc = name.loc);
+                        return Err(());
+                    }
+                    _ => {}
+                }
                 if let Some((orig_name, _)) = sets.get_key_value(&name) {
                     eprintln!("{loc}: ERROR: redefinition of set {name}", loc = name.loc);
                     eprintln!("{loc}: NOTE: first definition located here", loc = orig_name.loc);
                     return Err(())
                 }
-                sets.insert(name, SetExpr::parse(lexer)?);
+                sets.insert(name, SetExpr::parse(lexer, &sets)?);
             }
             _ => {
                 eprintln!("{loc}: ERROR: unknown keyword {name}", loc = key.loc, name = key.name);
