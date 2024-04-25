@@ -65,6 +65,7 @@ impl<'nsa> ScopedCase<'nsa> {
                 println!("{keyword} {state} {read} {write} {step} {next}");
             }
         } else {
+            // TODO: Expansion needs to do Cartesian Product for each var in the scope
             for (var, set) in &self.scope {
                 for element in &set.expand(sets)? {
                     let Case{keyword, state, read, write, step, next} = self.case.substitute_var(*var, element.clone());
