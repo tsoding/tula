@@ -24,10 +24,10 @@ impl<'nsa> ScopedCase<'nsa> {
     fn type_check_next_case(&self, sets: &Sets<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
         let mut bindings = HashMap::new();
 
-        if !self.case.state.pattern_match(state, &self.scope, &mut bindings) {
+        if !self.case.state.clone().force_evals()?.pattern_match(state, &self.scope, &mut bindings) {
             return Ok(None)
         }
-        if !self.case.read.pattern_match(read, &self.scope, &mut bindings) {
+        if !self.case.read.clone().force_evals()?.pattern_match(read, &self.scope, &mut bindings) {
             return Ok(None)
         }
 

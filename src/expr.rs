@@ -386,20 +386,7 @@ impl<'nsa> Expr<'nsa> {
                     Expr::Atom(Atom::Symbol(..)) | Expr::List{..} | Expr::Eval{..} => false,
                 }
             }
-            Expr::Eval{lhs: pattern_lhs, rhs: pattern_rhs, ..} => {
-                match value {
-                    Expr::Eval{lhs: value_lhs, rhs: value_rhs, ..} => {
-                        if !pattern_lhs.pattern_match(value_lhs, scope, bindings) {
-                            return false;
-                        }
-                        if !pattern_rhs.pattern_match(value_rhs, scope, bindings) {
-                            return false;
-                        }
-                        true
-                    }
-                    Expr::Atom(Atom::Symbol(_)) | Expr::Atom(Atom::Integer{..}) | Expr::List{..} => false,
-                }
-            }
+            Expr::Eval{..} => unreachable!(),
             Expr::List{items: pattern_items, ..} => {
                 match value {
                     Expr::List{items: value_items, ..} => {

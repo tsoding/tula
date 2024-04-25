@@ -33,8 +33,8 @@
   for s in {a b c}
   ```
 - [x] Fix emoji rendering in the trace
-- [ ] Finish off the Eval feature
-  - [ ] Forbid in Pattern Matching
+- [x] Finish off the Eval feature
+  - [x] Forbid in Pattern Matching
   - [x] Forbid in Tapes
   - [x] Forbid in Set Definitions
   - [x] Always Force in Write, Step and Next
