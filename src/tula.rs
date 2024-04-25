@@ -71,6 +71,9 @@ struct Case<'nsa> {
 impl<'nsa> Case<'nsa> {
     fn substitute_var(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Self {
         let Case{keyword, state, read, write, step, next} = self;
+        // TODO: don't do this stupid thing, please
+        // It would be better to transform this Case::substitute_var into similar substitute_bindings.
+        // But that requires restructuring the code at the caller.
         let mut bindings = HashMap::new();
         bindings.insert(var, expr.clone());
         let state = state.substitute_bindings(&bindings);
