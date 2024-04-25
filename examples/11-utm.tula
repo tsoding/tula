@@ -1,0 +1,80 @@
+trace UTM {
+    % (Inc 0 1 -> Halt) (Inc 1 0 -> Inc) &
+    (head 1) 0 0 1 0
+}
+
+let State { Inc Halt }
+let Bit { 0 1 }
+let Action { -> <- }
+
+case UTM % % -> (Read Inc)
+
+// TODO: Would be nice to have Cartesian Product in here
+for _s _n in State
+for _r _w in Bit
+for _a in Action
+for s in State
+case (Read s) (_s _r _w _a _n) (_s _r _w _a _n) -> (Read s)
+
+for s in State
+case (Read s) & & -> (Read s)
+
+for s in State
+for _ in Bit
+case (Read s) _ _ -> (Read s)
+
+for s in State
+for r in Bit
+case (Read s) (head r) (head r) <- (Match s r)
+
+for s in State
+for r _ in Bit
+case (Match s r) _ _ <- (Match s r)
+
+for s in State
+for r in Bit
+case (Match s r) & & <- (Match s r)
+
+for s n in State
+for r w in Bit
+for a in Action
+case (Match s r) (s r w a n) (s r w a n) -> (Write w a n)
+
+for _s _n in State
+for _r _w in Bit
+for _a in Action
+for s in State
+for r in Bit
+case (Match s r) (_s _r _w _a _n) (_s _r _w _a _n) <- (Match s r)
+
+for _s _n in State
+for _r _w in Bit
+for _a in Action
+for w in Bit
+for a in Action
+for n in State
+case (Write w a n) (_s _r _w _a _n) (_s _r _w _a _n) -> (Write w a n)
+
+for w in Bit
+for a in Action
+for n in State
+case (Write w a n) & & -> (Write w a n)
+
+for w in Bit
+for a in Action
+for n in State
+for _ in Bit
+case (Write w a n) _ _ -> (Write w a n)
+
+for w in Bit
+for a in Action
+for n in State
+for _ in Bit
+case (Write w a n) (head _) w a (Next n)
+
+for s in State
+case (Next s) & & . Tape_Underflow
+
+for s in State
+for r in Bit
+case (Next s) r (head r) <- (Match s r)

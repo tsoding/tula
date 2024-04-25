@@ -59,8 +59,8 @@
 - [x] Fib
 - [x] Reverse string
 - [x] Balanced parenthesis of different kind
+- [x] Universal Turing Machine
 - [ ] Brainfuck Interpreter
-- [ ] Universal Turing Machine
 - [ ] Lambda Calc interpreter
 
 # Indecisive
@@ -87,9 +87,10 @@
   - Set of all expressions that are used as State of the problem
   - Useful for defining "Callbacks"
   - Actually such Set might end up recursive
-- [ ] Sets of sets
+- [x] Sets of sets
   ```tula
   for s in Sets
   for a in s
   ```
   This is basically an easier version of Union Sets
+  We've got Union Sets. There is no need for this anymore
