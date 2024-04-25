@@ -49,42 +49,11 @@ impl<'nsa> ScopedCase<'nsa> {
     }
 
     fn expand(&self, sets: &Sets<'nsa>, normalize: bool) -> Result<()> {
-        if self.scope.is_empty() {
-            let Case{keyword, state, read, write, step, next} = self.case.clone();
-            let write = write.clone().force_evals()?;
-            let step = step.clone().force_evals()?;
-            let next = next.clone().force_evals()?;
-            if normalize {
-                let state = NormExpr(&state);
-                let read = NormExpr(&read);
-                let write = NormExpr(&write);
-                let step = NormExpr(&step);
-                let next = NormExpr(&next);
-                println!("{keyword} {state} {read} {write} {step} {next}");
-            } else {
-                println!("{keyword} {state} {read} {write} {step} {next}");
-            }
-        } else {
-            // TODO: Expansion needs to do Cartesian Product for each var in the scope
-            for (var, set) in &self.scope {
-                for element in &set.expand(sets)? {
-                    let Case{keyword, state, read, write, step, next} = self.case.substitute_var(*var, element.clone());
-                    let write = write.clone().force_evals()?;
-                    let step = step.clone().force_evals()?;
-                    let next = next.clone().force_evals()?;
-                    if normalize {
-                        let state = NormExpr(&state);
-                        let read = NormExpr(&read);
-                        let write = NormExpr(&write);
-                        let step = NormExpr(&step);
-                        let next = NormExpr(&next);
-                        println!("{keyword} {state} {read} {write} {step} {next}");
-                    } else {
-                        println!("{keyword} {state} {read} {write} {step} {next}");
-                    }
-                }
-            }
+        let mut scope: Vec<(Symbol<'nsa>, Vec<Expr<'nsa>>)> = Vec::new();
+        for (var, set) in self.scope.iter() {
+            scope.push((*var, set.expand(sets)?.iter().cloned().collect()))
         }
+        self.case.expand_recursively(&scope, 0, normalize)?;
         Ok(())
     }
 }
@@ -111,6 +80,31 @@ impl<'nsa> Case<'nsa> {
         let next  = next.substitute_bindings(&bindings);
         let keyword = *keyword;
         Case{keyword, state, read, write, step, next}
+    }
+
+    fn expand_recursively(&self, scope: &Vec<(Symbol<'nsa>, Vec<Expr<'nsa>>)>, index: usize, normalize: bool) -> Result<()> {
+        if index >= scope.len() {
+            let Case{keyword, state, read, write, step, next} = self.clone();
+            let write = write.clone().force_evals()?;
+            let step = step.clone().force_evals()?;
+            let next = next.clone().force_evals()?;
+            if normalize {
+                let state = NormExpr(&state);
+                let read = NormExpr(&read);
+                let write = NormExpr(&write);
+                let step = NormExpr(&step);
+                let next = NormExpr(&next);
+                println!("{keyword} {state} {read} {write} {step} {next}");
+            } else {
+                println!("{keyword} {state} {read} {write} {step} {next}");
+            }
+        } else {
+            let (var, set) = &scope[index];
+            for element in set {
+                self.substitute_var(*var, element.clone()).expand_recursively(scope, index + 1, normalize)?
+            }
+        }
+        Ok(())
     }
 }
 
@@ -774,7 +768,6 @@ const COMMANDS: &[Command] = &[
             for run in &runs {
                 run.expand(no_expr);
             }
-            println!();
             Ok(())
         },
     }
