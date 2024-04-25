@@ -1,0 +1,39 @@
+let Open  { '(' '[' '{' }
+let Close { ')' ']' '}' }
+let Paren Open + Close
+
+trace Entry { % '[' '(' ')' ']' '{' '}' & . }
+
+case Entry % % -> Pick
+
+case Pick & & -> Verify
+
+for p in Open case Verify p p . (Unbalanced Overflow)
+case Verify . . . Balanced
+
+for p   in Paren case Pick     p % -> (Pick p)
+for p q in Paren case (Pick p) q q -> (Pick p)
+for p   in Paren case (Pick p) & & -> (Update p)
+
+for p q in Open  case (Update p) q q -> (Update p)
+for p   in Open  case (Update p) . p <- Entry
+
+for p in Close
+for q in Open
+case (Update p) q q -> (Update p)
+
+for p in Close
+case (Update p) . . <- (Pop p)
+
+for p in Close
+case (Pop p) & & . (Unbalanced Underflow)
+
+case (Pop ')') '(' . <- Entry
+case (Pop ']') '[' . <- Entry
+case (Pop '}') '{' . <- Entry
+for p in Close
+for q in Open
+case (Pop p) q q . (Unbalanced Mismatch q p)
+
+for _ in Paren + { & } case Entry _ _ <- Entry
+
