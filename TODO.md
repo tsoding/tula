@@ -58,7 +58,7 @@
 
 - [x] Fib
 - [x] Reverse string
-- [ ] Balanced parenthesis of different kind
+- [x] Balanced parenthesis of different kind
 - [ ] Brainfuck Interpreter
 - [ ] Universal Turing Machine
 - [ ] Lambda Calc interpreter
