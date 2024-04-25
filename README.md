@@ -1,6 +1,6 @@
 # Tula
 
-**Tu**ring **La**nguage. An [Esoteric Programming Language](https://en.wikipedia.org/wiki/Esoteric_programming_language) based on [Turing Machine](https://en.wikipedia.org/wiki/Turing_machine) extended with [Set Theory](https://en.wikipedia.org/wiki/Set_theory) and Compound Expressions.
+**Tu**ring **La**nguage. An [Esoteric Programming Language](https://en.wikipedia.org/wiki/Esoteric_programming_language) based on [Turing Machine](https://en.wikipedia.org/wiki/Turing_machine) extended with [Set Theory](https://en.wikipedia.org/wiki/Set_theory), Compound Expressions and [Pattern Matching](https://en.wikipedia.org/wiki/Pattern_matching).
 
 *The Language is currently in Development. So the Source Code is not available yet. The Development is happening at https://twitch.tv/tsoding The Source Code will be available as soon as I feel like the project is ready. Also I'll be making a detailed Video about this Language on my YouTube channel https://youtube.com/@Tsoding*
 
@@ -55,11 +55,40 @@ Halt: 0 0 1 1
 
 ## Compound Expressions
 
-``` js
-{ (1 2) (2 3) (3 4) & }
+Instead of using just Symbols you can actually use Compound Expressions. Here is a simple example that iterates the Tape of Pairs of Numbers and swaps each pair until it reaches the delimiter `&`:
+
+```js
+case Swap (1 2) (2 1) -> Swap
+case Swap (2 3) (3 2) -> Swap
+case Swap (3 4) (4 3) -> Swap
+
+trace Swap { (1 2) (2 3) (3 4) & }
 ```
 
-TBD
+Trace of the above program:
+
+```
+Swap: (1 2) (2 3) (3 4) &
+      ^~~~~
+Swap: (2 1) (2 3) (3 4) &
+            ^~~~~
+Swap: (2 1) (3 2) (3 4) &
+                  ^~~~~
+Swap: (2 1) (3 2) (4 3) &
+```
+
+The Compound Expressions don't really add that much to the Language by themselves. We could've written the above program like this and end up with basically this same result:
+
+```js
+case Swap 1_2 2_1 -> Swap
+case Swap 2_3 3_2 -> Swap
+case Swap 3_4 4_3 -> Swap
+case Swap & & -> Halt
+
+trace Swap { 1_2 2_3 3_4 & }
+```
+
+What they actually do is emphasize that the Symbols may contain additional information and enable use with extrating this information through Pattern Matching.
 
 ## Sets and Universal Quantification
 
@@ -132,7 +161,7 @@ case (S n) m 0 -> S
 
 ### Example
 
-A simple example that iterates the Tape of Pairs of Numbers and swaps each pair until it reaches the delimiter `&`:
+Here is the example that iterates the Tape of Pairs of Numbers again but using Sets, Universal Quantifiers and Pattern Matching:
 
 ```js
 let Numbers { 1 2 3 4 }
