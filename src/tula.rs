@@ -555,8 +555,11 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<S
 fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
     let keyword = lexer.expect_symbols(&["run", "trace"])?;
     let state = Expr::parse(lexer)?;
-    let (open_curly_of_tape, tape) = parse_seq_of_exprs(lexer)?;
+    let (open_curly_of_tape, mut tape) = parse_seq_of_exprs(lexer)?;
     let trace = keyword.name == "trace";
+    for cell in &mut tape {
+        *cell = cell.clone().force_evals()?;
+    }
     Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
 }
 

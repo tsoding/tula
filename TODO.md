@@ -35,7 +35,7 @@
 - [x] Fix emoji rendering in the trace
 - [ ] Finish off the Eval feature
   - [ ] Forbid in Pattern Matching
-  - [ ] Forbid in Tapes
+  - [x] Forbid in Tapes
   - [ ] Forbid in Set Definitions
   - [x] Always Force in Write, Step and Next
 - [ ] More Magical Sets
