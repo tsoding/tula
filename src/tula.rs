@@ -280,7 +280,7 @@ fn parse_seq_of_exprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Ve
         if symbol.name == "}" {
             break;
         }
-        seq.push(Expr::parse(lexer)?);
+        seq.push(Expr::parse(lexer)?.force_evals()?);
     }
     let _ = lexer.expect_symbols(&["}"])?;
     Ok((open_curly, seq))
@@ -293,7 +293,7 @@ fn parse_set_of_exprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<HashSet<Expr<'nsa
         if symbol.name == "}" {
             break;
         }
-        let value = Expr::parse(lexer)?;
+        let value = Expr::parse(lexer)?.force_evals()?;
         if let Some(existing_value) = set.get(&value) {
             eprintln!("{loc}: ERROR: Set may only consist of non-repeating values", loc = value.loc());
             eprintln!("{loc}: NOTE: Same value was provided here", loc = existing_value.loc());
@@ -381,8 +381,9 @@ impl<'nsa> SetExpr<'nsa> {
             return Err(())
         };
         let set = match symbol.name {
-            "{" => Self::Anonymous {
-                elements: parse_set_of_exprs(lexer)?
+            "{" => {
+                let elements = parse_set_of_exprs(lexer)?;
+                Self::Anonymous {elements}
             },
             "(" => {
                 let _ = lexer.next_symbol().unwrap();
@@ -555,11 +556,8 @@ fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<S
 fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
     let keyword = lexer.expect_symbols(&["run", "trace"])?;
     let state = Expr::parse(lexer)?;
-    let (open_curly_of_tape, mut tape) = parse_seq_of_exprs(lexer)?;
+    let (open_curly_of_tape, tape) = parse_seq_of_exprs(lexer)?;
     let trace = keyword.name == "trace";
-    for cell in &mut tape {
-        *cell = cell.clone().force_evals()?;
-    }
     Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
 }
 

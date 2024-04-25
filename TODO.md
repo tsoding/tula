@@ -36,7 +36,7 @@
 - [ ] Finish off the Eval feature
   - [ ] Forbid in Pattern Matching
   - [x] Forbid in Tapes
-  - [ ] Forbid in Set Definitions
+  - [x] Forbid in Set Definitions
   - [x] Always Force in Write, Step and Next
 - [ ] More Magical Sets
   - [ ] Byte
