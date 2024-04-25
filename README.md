@@ -84,7 +84,6 @@ The Compound Expressions don't really add that much to the Language by themselve
 case Swap 1_2 2_1 -> Swap
 case Swap 2_3 3_2 -> Swap
 case Swap 3_4 4_3 -> Swap
-case Swap & & -> Halt
 
 trace Swap { 1_2 2_3 3_4 & }
 ```
