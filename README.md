@@ -1,6 +1,6 @@
 # Tula
 
-**Tu**ring **La**nguage. An [Esoteric Programming Language](https://en.wikipedia.org/wiki/Esoteric_programming_language) based on [Turing Machine](https://en.wikipedia.org/wiki/Turing_machine) extended with [Set Theory](https://en.wikipedia.org/wiki/Set_theory), Compound Expressions and [Pattern Matching](https://en.wikipedia.org/wiki/Pattern_matching).
+**Tu**ring **La**nguage. An [Esoteric Programming Language](https://en.wikipedia.org/wiki/Esoteric_programming_language) based on [Turing Machine](https://en.wikipedia.org/wiki/Turing_machine) extended with [Set Theory](https://en.wikipedia.org/wiki/Set_theory), Compound Expressions.
 
 *The Language is currently in Development. So the Source Code is not available yet. The Development is happening at https://twitch.tv/tsoding The Source Code will be available as soon as I feel like the project is ready. Also I'll be making a detailed Video about this Language on my YouTube channel https://youtube.com/@Tsoding*
 
@@ -88,7 +88,7 @@ case Swap 3_4 4_3 -> Swap
 trace Swap { 1_2 2_3 3_4 & }
 ```
 
-What they actually do is emphasize that the Symbols may contain additional information and enable use with extrating this information through Pattern Matching.
+What they actually do is emphasize that the Symbols may contain additional information and enable use with extrating this information by using Sets and Universal Quantification.
 
 ## Sets and Universal Quantification
 
@@ -161,7 +161,7 @@ case (S n) m 0 -> S
 
 ### Example
 
-Here is the example that iterates the Tape of Pairs of Numbers again but using Sets, Universal Quantifiers and Pattern Matching:
+Here is the example that iterates the Tape of Pairs of Numbers again but using Sets, Universal Quantifiers:
 
 ```js
 let Numbers { 1 2 3 4 }
