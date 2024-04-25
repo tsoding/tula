@@ -17,14 +17,14 @@ impl<'nsa> Atom<'nsa> {
     pub fn expect_integer(&self) -> Result<i32> {
         match self {
             &Self::Integer{value, ..} => Ok(value),
-            Self::Symbol(Symbol{loc, ..}) => {
-                eprintln!("{loc}: ERROR: expected integer but got symbol");
+            Self::Symbol(symbol) => {
+                eprintln!("{loc}: ERROR: expected integer but got symbol `{symbol}`", loc = symbol.loc);
                 Err(())
             }
         }
     }
 
-    pub fn expect_symbols(&self) -> Result<&Symbol<'nsa>> {
+    pub fn expect_symbol(&self) -> Result<&Symbol<'nsa>> {
         match self {
             Self::Integer{symbol: Symbol{loc, ..}, ..} => {
                 eprintln!("{loc}: ERROR: expected symbol but got integer");
@@ -181,6 +181,17 @@ impl<'nsa, 'cia> fmt::Display for NormExpr<'nsa, 'cia> {
     }
 }
 
+fn expect_bool<'nsa>(symbol: &Symbol<'nsa>) -> Result<bool> {
+    match symbol.name {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => {
+            eprintln!("{loc}: ERROR: expected boolean but got symbol {symbol}", loc = symbol.loc);
+            Err(())
+        }
+    }
+}
+
 impl<'nsa> Expr<'nsa> {
     pub fn expect_atom(&self) -> Result<&Atom<'nsa>> {
         match self {
@@ -207,29 +218,60 @@ impl<'nsa> Expr<'nsa> {
                 Ok(Self::List{open_paren, items: new_items})
             }
             Self::Eval{open_paren, lhs, op, rhs} => {
-                let lhs = lhs.expect_atom()?.expect_integer()?;
-                let rhs = rhs.expect_atom()?.expect_integer()?;
-                let op  = op.expect_atom()?.expect_symbols()?;
-                match op.name {
-                    "+" => Ok(Expr::Atom(Atom::Integer {
-                        symbol: open_paren,
-                        value: lhs + rhs,
-                    })),
-                    "%" => Ok(Expr::Atom(Atom::Integer {
-                        symbol: open_paren,
-                        value: lhs % rhs,
-                    })),
-                    "<" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                        loc: open_paren.loc,
-                        name: if lhs < rhs {
-                            "true"
-                        } else {
-                            "false"
-                        },
-                    }))),
-                    _ => {
-                        eprintln!("{loc}: ERROR: Unexpected Integer operation", loc = op.loc);
-                        Err(())
+                let lhs = lhs.force_evals()?.expect_atom()?.clone();
+                match lhs {
+                    Atom::Integer{value: lhs, ..} => {
+                        let rhs = rhs.force_evals()?.expect_atom()?.expect_integer()?;
+                        let op  = op.force_evals()?.expect_atom()?.expect_symbol()?.clone();
+                        match op.name {
+                            "+" => Ok(Expr::Atom(Atom::Integer {
+                                symbol: open_paren,
+                                value: lhs + rhs,
+                            })),
+                            "%" => Ok(Expr::Atom(Atom::Integer {
+                                symbol: open_paren,
+                                value: lhs % rhs,
+                            })),
+                            "<" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: if lhs < rhs {
+                                    "true"
+                                } else {
+                                    "false"
+                                },
+                            }))),
+                            "==" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: if lhs == rhs {
+                                    "true"
+                                } else {
+                                    "false"
+                                },
+                            }))),
+                            _ => {
+                                eprintln!("{loc}: ERROR: Unexpected Integer operation", loc = op.loc);
+                                Err(())
+                            }
+                        }
+                    }
+                    Atom::Symbol(symbol) => {
+                        let lhs = expect_bool(&symbol)?;
+                        let rhs = expect_bool(rhs.force_evals()?.expect_atom()?.expect_symbol()?)?;
+                        let op  = op.force_evals()?.expect_atom()?.expect_symbol()?.clone();
+                        match op.name {
+                            "||" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: if lhs || rhs {
+                                    "true"
+                                } else {
+                                    "false"
+                                },
+                            }))),
+                            _ => {
+                                eprintln!("{loc}: ERROR: Unexpected Boolean operation", loc = op.loc);
+                                Err(())
+                            }
+                        }
                     }
                 }
             }
@@ -280,9 +322,9 @@ impl<'nsa> Expr<'nsa> {
         let symbol = lexer.parse_symbol()?;
         match symbol.name {
             "[" => {
-                let lhs = Box::new(Expr::Atom(Atom::from_symbol(lexer.parse_symbol()?)));
-                let op  = Box::new(Expr::Atom(Atom::from_symbol(lexer.parse_symbol()?)));
-                let rhs = Box::new(Expr::Atom(Atom::from_symbol(lexer.parse_symbol()?)));
+                let lhs = Box::new(Expr::parse(lexer)?);
+                let op  = Box::new(Expr::parse(lexer)?);
+                let rhs = Box::new(Expr::parse(lexer)?);
                 let _ = lexer.expect_symbols(&["]"])?;
                 Ok(Self::Eval {
                     lhs, op, rhs, open_paren: symbol

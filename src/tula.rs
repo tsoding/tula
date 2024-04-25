@@ -208,7 +208,7 @@ impl<'nsa> Machine<'nsa> {
         for case in program.scoped_cases.iter() {
             if let Some((write, step, next)) = case.type_check_next_case(&program.sets, &self.state, &self.tape[self.head])? {
                 self.tape[self.head] = write.force_evals()?;
-                let step = step.expect_atom()?.expect_symbols()?;
+                let step = step.expect_atom()?.expect_symbol()?;
                 match step.name {
                     "<-" => {
                         if self.head == 0 {
