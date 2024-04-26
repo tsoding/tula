@@ -39,8 +39,8 @@
   - [x] Forbid in Set Definitions
   - [x] Always Force in Write, Step and Next
 - [x] Rest of the Operations for Integers and Booleans
-- [ ] Cartesian Products for Sets
-- [ ] Integer sets via ranges
+- [x] Cartesian Products for Sets
+- [ ] Something visual, maybe with Raylib
 - [ ] Custom Integer overflow/underflow Runtime Errors
   - Right now we get a standard Rust panic
 - [ ] More Magical Sets
@@ -56,7 +56,6 @@
     - Set of all possible Step actions like `->`, `<-`, `.`, `!`, etc
 - [ ] Explicitly denote Halt States
   - Useful for catching unreachable states at runtime
-- [ ] Something visual, maybe with Raylib
 - [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
 
 # Examples
@@ -99,3 +98,4 @@
   ```
   This is basically an easier version of Union Sets
   We've got Union Sets. There is no need for this anymore
+- [ ] Integer sets via ranges
