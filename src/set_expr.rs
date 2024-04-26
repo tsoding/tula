@@ -189,7 +189,7 @@ impl<'nsa> SetExpr<'nsa> {
             Self::Enclosed{inner, ..} => inner.contains(sets, element),
             Self::Product{elements: product_elements} => {
                 match element {
-                    Expr::List{items: elements, ..} => {
+                    Expr::Tuple{items: elements, ..} => {
                         if elements.len() != product_elements.len() {
                             return false;
                         }
@@ -262,7 +262,7 @@ fn expand_product_recursively<'nsa>(expanded_elements: &[HashSet<Expr<'nsa>>], i
             }
         }
         [] => {
-            let new = result.insert(Expr::List{items: items.clone(), loc: item_loc.clone()});
+            let new = result.insert(Expr::Tuple{items: items.clone(), loc: item_loc.clone()});
             assert!(new);
         }
     }

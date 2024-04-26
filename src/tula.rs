@@ -193,7 +193,7 @@ impl<'nsa> Statement<'nsa> {
                             return Err(())
                         }
                         Expr::Eval{loc, ..} |
-                        Expr::List{loc, ..} => {
+                        Expr::Tuple{loc, ..} => {
                             eprintln!("{loc}: ERROR: Pattern Matching in Universal Quantifiers is not supported");
                             return Err(())
                         }

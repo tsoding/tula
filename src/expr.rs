@@ -80,10 +80,9 @@ pub enum Expr<'nsa> {
         op: Box<Expr<'nsa>>,
         rhs: Box<Expr<'nsa>>,
     },
-    // TODO: Expr::List should be actually called Expr::Tuple
-    List {
+    Tuple {
         loc: Loc<'nsa>,
-        // TODO: Expr::List::items should be called Expr::List::elements
+        // TODO: Expr::Tuple::items should be called Expr::Tuple::elements
         items: Vec<Expr<'nsa>>
     },
 }
@@ -94,18 +93,18 @@ impl<'nsa> PartialEq for Expr<'nsa> {
             Self::Atom(atom) => {
                 match other {
                     Self::Atom(other_atom) => atom == other_atom,
-                    Self::Eval{..} | Self::List{..} => false,
+                    Self::Eval{..} | Self::Tuple{..} => false,
                 }
             }
             Self::Eval{lhs, rhs, ..} => {
                 match other {
                     Self::Eval{lhs: other_lhs, rhs: other_rhs, ..} => lhs == other_lhs && rhs == other_rhs,
-                    Self::Atom(_) | Self::List{..} => false,
+                    Self::Atom(_) | Self::Tuple{..} => false,
                 }
             }
-            Self::List{items, ..} => {
+            Self::Tuple{items, ..} => {
                 match other {
-                    Self::List{items: other_items, ..} => items == other_items,
+                    Self::Tuple{items: other_items, ..} => items == other_items,
                     Self::Atom(_) | Self::Eval{..} => false,
                 }
             }
@@ -119,7 +118,7 @@ impl<'nsa> Hash for Expr<'nsa> {
     fn hash<H>(&self, h: &mut H) where H: Hasher {
         match self {
             Self::Atom(atom) => atom.hash(h),
-            Self::List{items, ..} => items.hash(h),
+            Self::Tuple{items, ..} => items.hash(h),
             Self::Eval{lhs, rhs, ..} => {
                 lhs.hash(h);
                 rhs.hash(h);
@@ -142,7 +141,7 @@ impl<'nsa> fmt::Display for Expr<'nsa> {
         match self {
             Self::Atom(atom) => write!(f, "{atom}"),
             Self::Eval{lhs, rhs, ..} => write!(f, "[{lhs} + {rhs}]"),
-            Self::List{items, ..} => {
+            Self::Tuple{items, ..} => {
                 write!(f, "(")?;
                 for (i, item) in items.iter().enumerate() {
                     if i == 0 {
@@ -168,7 +167,7 @@ impl<'nsa, 'cia> fmt::Display for NormExpr<'nsa, 'cia> {
             // () => __
             // (1 2 3 4) => _1_2_3_4_
             // (1 (2 3) 4) _1__2_3__4_
-            Expr::List{items, ..} => {
+            Expr::Tuple{items, ..} => {
                 write!(f, "_")?;
                 for (i, item) in items.iter().enumerate() {
                     if i > 0 {
@@ -206,8 +205,8 @@ impl<'nsa> Expr<'nsa> {
     pub fn expect_atom(&self) -> Result<&Atom<'nsa>> {
         match self {
             Self::Atom(atom) => Ok(atom),
-            Self::List{loc, ..} => {
-                eprintln!("{loc}: ERROR: expected atom but got list");
+            Self::Tuple{loc, ..} => {
+                eprintln!("{loc}: ERROR: expected atom but got tuple");
                 Err(())
             }
             Self::Eval{loc, ..} => {
@@ -220,12 +219,12 @@ impl<'nsa> Expr<'nsa> {
     pub fn force_evals(self) -> Result<Expr<'nsa>> {
         match self {
             Self::Atom(_) => Ok(self),
-            Self::List{loc, items} => {
+            Self::Tuple{loc, items} => {
                 let mut new_items = vec![];
                 for item in items {
                     new_items.push(item.force_evals()?)
                 }
-                Ok(Self::List{loc, items: new_items})
+                Ok(Self::Tuple{loc, items: new_items})
             }
             Self::Eval{loc, lhs, op, rhs} => {
                 let lhs = lhs.force_evals()?.expect_atom()?.clone();
@@ -352,7 +351,7 @@ impl<'nsa> Expr<'nsa> {
             Self::Eval{lhs, rhs, ..} => {
                 lhs.uses_var(var).or_else(|| rhs.uses_var(var))
             }
-            Self::List{items, ..} => {
+            Self::Tuple{items, ..} => {
                 items.iter().find_map(|item| item.uses_var(var))
             }
         }
@@ -374,9 +373,9 @@ impl<'nsa> Expr<'nsa> {
                 let rhs = Box::new(rhs.substitute_bindings(bindings));
                 Self::Eval{loc: *loc, lhs, op, rhs}
             }
-            Self::List{loc, items} => {
+            Self::Tuple{loc, items} => {
                 let items = items.iter().map(|item| item.substitute_bindings(bindings)).collect();
-                Self::List{loc: *loc, items}
+                Self::Tuple{loc: *loc, items}
             }
         }
     }
@@ -402,7 +401,7 @@ impl<'nsa> Expr<'nsa> {
                     items.push(Expr::parse(lexer)?);
                 }
                 let _ = lexer.expect_symbols(&[")"])?;
-                Ok(Self::List {
+                Ok(Self::Tuple {
                     loc: symbol.loc,
                     items,
                 })
@@ -414,7 +413,7 @@ impl<'nsa> Expr<'nsa> {
     pub fn loc(&self) -> &Loc<'nsa> {
         match self {
             Self::Atom(Atom::Symbol(symbol)) => &symbol.loc,
-            Self::List{loc, ..} | Self::Eval{loc, ..} | Self::Atom(Atom::Integer{loc, ..}) => &loc,
+            Self::Tuple{loc, ..} | Self::Eval{loc, ..} | Self::Atom(Atom::Integer{loc, ..}) => &loc,
         }
     }
 
@@ -431,20 +430,20 @@ impl<'nsa> Expr<'nsa> {
                 } else {
                     match value {
                         Expr::Atom(Atom::Symbol(value_symbol)) => pattern_symbol == value_symbol,
-                        Expr::List{..} | Expr::Eval{..} | Expr::Atom(Atom::Integer{..}) => false,
+                        Expr::Tuple{..} | Expr::Eval{..} | Expr::Atom(Atom::Integer{..}) => false,
                     }
                 }
             }
             Expr::Atom(Atom::Integer{value: pattern_value, ..}) => {
                 match value {
                     Expr::Atom(Atom::Integer{value: value_value, ..}) => pattern_value == value_value,
-                    Expr::Atom(Atom::Symbol(..)) | Expr::List{..} | Expr::Eval{..} => false,
+                    Expr::Atom(Atom::Symbol(..)) | Expr::Tuple{..} | Expr::Eval{..} => false,
                 }
             }
             Expr::Eval{..} => unreachable!(),
-            Expr::List{items: pattern_items, ..} => {
+            Expr::Tuple{items: pattern_items, ..} => {
                 match value {
-                    Expr::List{items: value_items, ..} => {
+                    Expr::Tuple{items: value_items, ..} => {
                         if pattern_items.len() != value_items.len() {
                             return false
                         }
