@@ -20,6 +20,9 @@ pub enum SetExpr<'nsa> {
     Diff {
         lhs: Box<SetExpr<'nsa>>,
         rhs: Box<SetExpr<'nsa>>,
+    },
+    Product {
+        elements: Vec<SetExpr<'nsa>>
     }
 }
 
@@ -28,6 +31,15 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
         match self {
             Self::Named(name) => write!(f, "{name}"),
             Self::Integer(_) => write!(f, "Integer"),
+            Self::Product {elements} => {
+                for (i, element) in elements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " * ")?;
+                    }
+                    write!(f, "{element}")?;
+                }
+                Ok(())
+            }
             Self::Anonymous {elements} => {
                 write!(f, "{{")?;
                 for (i, element) in elements.iter().enumerate() {
@@ -102,13 +114,33 @@ impl<'nsa> SetExpr<'nsa> {
         Ok(set)
     }
 
+    fn parse_product(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<Self> {
+        let mut elements = vec![Self::parse_primary(lexer, sets)?];
+        while let Some(symbol) = lexer.peek_symbol() {
+            if symbol.name == "*" {
+                let _ = lexer.next_symbol().unwrap();
+                elements.push(Self::parse_primary(lexer, sets)?);
+            } else {
+                break;
+            }
+        }
+        if elements.len() == 1 {
+            // TODO: think about a better solution that does not involve this kind of hackery
+            Ok(elements.pop().unwrap())
+        } else if elements.len() > 1 {
+            Ok(Self::Product{elements})
+        } else {
+            unreachable!("elements may never be empty")
+        }
+    }
+
     pub fn parse(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<Self> {
-        let mut lhs = Self::parse_primary(lexer, sets)?;
+        let mut lhs = Self::parse_product(lexer, sets)?;
         while let Some(symbol) = lexer.peek_symbol() {
             match symbol.name {
                 "+" => {
                     let _ = lexer.next_symbol().unwrap();
-                    let rhs = SetExpr::parse_primary(lexer, sets)?;
+                    let rhs = SetExpr::parse_product(lexer, sets)?;
                     lhs = SetExpr::Union {
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
@@ -116,7 +148,7 @@ impl<'nsa> SetExpr<'nsa> {
                 }
                 "-" => {
                     let _ = lexer.next_symbol().unwrap();
-                    let rhs = SetExpr::parse_primary(lexer, sets)?;
+                    let rhs = SetExpr::parse_product(lexer, sets)?;
                     lhs = SetExpr::Diff {
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
@@ -130,6 +162,24 @@ impl<'nsa> SetExpr<'nsa> {
 
     pub fn contains(&self, sets: &Sets<'nsa>, element: &Expr<'nsa>) -> bool {
         match self {
+            Self::Product{elements: product_elements} => {
+                match element {
+                    Expr::List{items: elements, ..} => {
+                        if elements.len() != product_elements.len() {
+                            return false;
+                        }
+
+                        for (subelement, subset) in elements.iter().zip(product_elements.iter()) {
+                            if !subset.contains(sets, subelement) {
+                                return false;
+                            }
+                        }
+
+                        true
+                    }
+                    _ => false
+                }
+            }
             Self::Union{lhs, rhs} => lhs.contains(sets, element) || rhs.contains(sets, element),
             Self::Diff{lhs, rhs} => lhs.contains(sets, element) && !rhs.contains(sets, element),
             Self::Anonymous{elements} => elements.contains(element),
@@ -150,6 +200,9 @@ impl<'nsa> SetExpr<'nsa> {
 
     pub fn expand(&self, sets: &Sets<'nsa>) -> Result<HashSet<Expr<'nsa>>> {
         match self {
+            Self::Product{..} => {
+                todo!("Expansion of products")
+            }
             Self::Union{lhs, rhs} => Ok(lhs.expand(sets)?.union(&rhs.expand(sets)?).cloned().collect()),
             Self::Diff{lhs, rhs} => Ok(lhs.expand(sets)?.difference(&rhs.expand(sets)?).cloned().collect()),
             Self::Anonymous{elements} => Ok(elements.clone()),

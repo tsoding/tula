@@ -80,8 +80,10 @@ pub enum Expr<'nsa> {
         op: Box<Expr<'nsa>>,
         rhs: Box<Expr<'nsa>>,
     },
+    // TODO: Expr::List should be actually called Expr::Tuple
     List {
         open_paren: Symbol<'nsa>,
+        // TODO: Expr::List::items should be called Expr::List::elements
         items: Vec<Expr<'nsa>>
     },
 }

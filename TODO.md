@@ -40,6 +40,7 @@
   - [x] Always Force in Write, Step and Next
 - [x] Rest of the Operations for Integers and Booleans
 - [ ] Cartesian Products for Sets
+- [ ] Integer sets via ranges
 - [ ] Custom Integer overflow/underflow Runtime Errors
   - Right now we get a standard Rust panic
 - [ ] More Magical Sets
