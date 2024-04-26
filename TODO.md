@@ -38,9 +38,12 @@
   - [x] Forbid in Tapes
   - [x] Forbid in Set Definitions
   - [x] Always Force in Write, Step and Next
+- [ ] Rest of the Operations for Integers and Booleans
+- [ ] Custom Integer overflow/underflow Runtime Errors
+  - Right now we get a standard Rust panic
 - [ ] More Magical Sets
-  - [ ] Byte
   - [ ] Real
+  - [ ] Byte
   - [ ] Boolean
     - Could be user defined
     ```tula

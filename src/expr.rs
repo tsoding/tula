@@ -228,6 +228,10 @@ impl<'nsa> Expr<'nsa> {
                                 symbol: open_paren,
                                 value: lhs + rhs,
                             })),
+                            "-" => Ok(Expr::Atom(Atom::Integer {
+                                symbol: open_paren,
+                                value: lhs - rhs,
+                            })),
                             "%" => Ok(Expr::Atom(Atom::Integer {
                                 symbol: open_paren,
                                 value: lhs % rhs,
@@ -257,7 +261,7 @@ impl<'nsa> Expr<'nsa> {
                                 },
                             }))),
                             _ => {
-                                eprintln!("{loc}: ERROR: Unexpected Integer operation", loc = op.loc);
+                                eprintln!("{loc}: ERROR: Unexpected Integer operation {op}", loc = op.loc);
                                 Err(())
                             }
                         }

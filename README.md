@@ -307,3 +307,95 @@ Until_Five: 1 2 3 4 5 6 7 8
 ```
 
 This specifically makes the program halt at `5` because it does not have a case for it.
+
+## Eval Expressions (EEs)
+
+Once you've got two Integers the most logical thing to do would be to sum them up:
+
+```js
+trace Sum { (1 2) . }
+for a b in Integer
+case Sum (a b) [a + b] . Halt
+```
+
+The trace of the above program:
+
+```
+Sum: (1 2) .
+     ^~~~~
+Halt: 3 .
+      ^
+```
+
+In the program above `[a + b]` is an Eval Expression (EE). It is a kind of a Compound Expression. Evaluating the Eval Expressions in the Compound Expressions is called Forcing them.
+
+Bellow is a program that fills up the Tape with Fibonacci numbers up until a delimiter `&`:
+
+```js
+for a in Integer
+case Fib a a -> (Fib a)
+
+for a b in Integer {
+    case (Fib a)   b b       -> (Fib a b)
+    case (Fib a b) 0 [a + b] .  (Fib b)
+}
+
+trace Fib { 0 1 0 0 0 0 & }
+```
+
+The trace of the above program:
+
+```
+Fib: 0 1 0 0 0 0 &
+     ^
+(Fib 0): 0 1 0 0 0 0 &
+           ^
+(Fib 0 1): 0 1 0 0 0 0 &
+               ^
+(Fib 1): 0 1 1 0 0 0 &
+             ^
+(Fib 1 1): 0 1 1 0 0 0 &
+                 ^
+(Fib 1): 0 1 1 2 0 0 &
+               ^
+(Fib 1 2): 0 1 1 2 0 0 &
+                   ^
+(Fib 2): 0 1 1 2 3 0 &
+                 ^
+(Fib 2 3): 0 1 1 2 3 0 &
+                     ^
+(Fib 3): 0 1 1 2 3 5 &
+                   ^
+(Fib 3 5): 0 1 1 2 3 5 &
+                       ^
+```
+
+The syntax of an EE is `[<expr> <expr> <expr>]` where `<expr>` is a Compound Expression.
+- First `<expr>` is a Left-Hand Side operand.
+- Second `<expr>` is the operator.
+- Third `<expr>` is the Right-Hand Side operatnd.
+
+Making operands Compound Expressions allows for nesting like this `[[a % 15] == 0]`. Such EEs are Forced Recursively starting from the Inner ones.
+
+Since the operator is also a Compound Expression it is possible to substitute as well:
+
+```js
+let Op { + - }
+
+for a b in Integer
+for op in Op
+case Eval (a b op) [a op b] -> Eval
+
+trace Eval { (34 35 +) (500 80 -) & }
+```
+
+The trace of the above program:
+
+```
+Eval: (34 35 +) (500 80 -) &
+      ^~~~~~~~~
+Eval: 69 (500 80 -) &
+         ^~~~~~~~~~
+Eval: 69 420 &
+             ^
+```
