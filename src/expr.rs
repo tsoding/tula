@@ -192,6 +192,14 @@ fn expect_bool<'nsa>(symbol: &Symbol<'nsa>) -> Result<bool> {
     }
 }
 
+fn bool_to_str(cond: bool) -> &'static str {
+    if cond {
+        "true"
+    } else {
+        "false"
+    }
+}
+
 impl<'nsa> Expr<'nsa> {
     pub fn expect_atom(&self) -> Result<&Atom<'nsa>> {
         match self {
@@ -232,33 +240,41 @@ impl<'nsa> Expr<'nsa> {
                                 symbol: open_paren,
                                 value: lhs - rhs,
                             })),
+                            "*" => Ok(Expr::Atom(Atom::Integer {
+                                symbol: open_paren,
+                                value: lhs * rhs,
+                            })),
+                            "/" => Ok(Expr::Atom(Atom::Integer {
+                                symbol: open_paren,
+                                value: lhs / rhs,
+                            })),
                             "%" => Ok(Expr::Atom(Atom::Integer {
                                 symbol: open_paren,
                                 value: lhs % rhs,
                             })),
+                            ">" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: bool_to_str(lhs > rhs),
+                            }))),
+                            ">=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: bool_to_str(lhs >= rhs),
+                            }))),
                             "<" => Ok(Expr::Atom(Atom::Symbol(Symbol {
                                 loc: open_paren.loc,
-                                name: if lhs < rhs {
-                                    "true"
-                                } else {
-                                    "false"
-                                },
+                                name: bool_to_str(lhs < rhs),
                             }))),
                             "<=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
                                 loc: open_paren.loc,
-                                name: if lhs <= rhs {
-                                    "true"
-                                } else {
-                                    "false"
-                                },
+                                name: bool_to_str(lhs <= rhs),
                             }))),
                             "==" => Ok(Expr::Atom(Atom::Symbol(Symbol {
                                 loc: open_paren.loc,
-                                name: if lhs == rhs {
-                                    "true"
-                                } else {
-                                    "false"
-                                },
+                                name: bool_to_str(lhs == rhs),
+                            }))),
+                            "!=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: bool_to_str(lhs != rhs),
                             }))),
                             _ => {
                                 eprintln!("{loc}: ERROR: Unexpected Integer operation {op}", loc = op.loc);
@@ -273,11 +289,19 @@ impl<'nsa> Expr<'nsa> {
                         match op.name {
                             "||" => Ok(Expr::Atom(Atom::Symbol(Symbol {
                                 loc: open_paren.loc,
-                                name: if lhs || rhs {
-                                    "true"
-                                } else {
-                                    "false"
-                                },
+                                name: bool_to_str(lhs || rhs),
+                            }))),
+                            "&&" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: bool_to_str(lhs && rhs),
+                            }))),
+                            "==" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: bool_to_str(lhs == rhs),
+                            }))),
+                            "!=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc: open_paren.loc,
+                                name: bool_to_str(lhs != rhs),
                             }))),
                             _ => {
                                 eprintln!("{loc}: ERROR: Unexpected Boolean operation", loc = op.loc);
