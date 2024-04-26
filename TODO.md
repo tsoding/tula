@@ -40,9 +40,9 @@
   - [x] Always Force in Write, Step and Next
 - [x] Rest of the Operations for Integers and Booleans
 - [x] Cartesian Products for Sets
-- [ ] Something visual, maybe with Raylib
-- [ ] Custom Integer overflow/underflow Runtime Errors
+- [x] Custom Integer overflow/underflow Runtime Errors
   - Right now we get a standard Rust panic
+- [ ] Something visual, maybe with Raylib
 - [ ] More Magical Sets
   - [ ] Real
   - [ ] Byte

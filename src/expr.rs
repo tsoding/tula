@@ -236,23 +236,48 @@ impl<'nsa> Expr<'nsa> {
                         match op.name {
                             "+" => Ok(Expr::Atom(Atom::Integer {
                                 loc,
-                                value: lhs + rhs,
+                                value: if let Some(value) = lhs.checked_add(rhs) {
+                                    value
+                                } else {
+                                    eprintln!("{loc}: ERROR: integer overflow while trying evaluate [{lhs} {op} {rhs}]");
+                                    return Err(());
+                                },
                             })),
                             "-" => Ok(Expr::Atom(Atom::Integer {
                                 loc,
-                                value: lhs - rhs,
+                                value: if let Some(value) = lhs.checked_sub(rhs) {
+                                    value
+                                } else {
+                                    eprintln!("{loc}: ERROR: integer overflow while trying evaluate [{lhs} {op} {rhs}]");
+                                    return Err(());
+                                },
                             })),
                             "*" => Ok(Expr::Atom(Atom::Integer {
                                 loc,
-                                value: lhs * rhs,
+                                value: if let Some(value) = lhs.checked_mul(rhs) {
+                                    value
+                                } else {
+                                    eprintln!("{loc}: ERROR: integer overflow while trying evaluate [{lhs} {op} {rhs}]");
+                                    return Err(());
+                                },
                             })),
                             "/" => Ok(Expr::Atom(Atom::Integer {
                                 loc,
-                                value: lhs / rhs,
+                                value: if let Some(value) = lhs.checked_div(rhs) {
+                                    value
+                                } else {
+                                    eprintln!("{loc}: ERROR: integer overflow while trying evaluate [{lhs} {op} {rhs}]");
+                                    return Err(());
+                                },
                             })),
                             "%" => Ok(Expr::Atom(Atom::Integer {
                                 loc,
-                                value: lhs % rhs,
+                                value: if let Some(value) = lhs.checked_rem(rhs) {
+                                    value
+                                } else {
+                                    eprintln!("{loc}: ERROR: integer overflow while trying evaluate [{lhs} {op} {rhs}]");
+                                    return Err(());
+                                },
                             })),
                             ">" => Ok(Expr::Atom(Atom::Symbol(Symbol {
                                 loc,
