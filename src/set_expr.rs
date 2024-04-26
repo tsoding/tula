@@ -226,13 +226,13 @@ impl<'nsa> SetExpr<'nsa> {
     pub fn expand(&self, sets: &Sets<'nsa>) -> Result<HashSet<Expr<'nsa>>> {
         match self {
             Self::Product{elements} => {
-                let mut expanded_elements = vec![];
+                let mut product = vec![];
                 for element in elements.iter() {
-                    expanded_elements.push(element.expand(sets)?)
+                    product.push(element.expand(sets)?)
                 }
                 let mut items = vec![];
                 let mut result = HashSet::new();
-                expand_product_recursively(&expanded_elements, self.loc(), &mut items, &mut result);
+                expand_product_recursively(&product, self.loc(), &mut items, &mut result);
                 Ok(result)
             }
             Self::Enclosed{inner, ..} => inner.expand(sets),
@@ -252,8 +252,8 @@ impl<'nsa> SetExpr<'nsa> {
     }
 }
 
-fn expand_product_recursively<'nsa>(expanded_elements: &[HashSet<Expr<'nsa>>], item_loc: &Loc<'nsa>, items: &mut Vec<Expr<'nsa>>, result: &mut HashSet<Expr<'nsa>>) {
-    match expanded_elements {
+fn expand_product_recursively<'nsa>(product: &[HashSet<Expr<'nsa>>], item_loc: &Loc<'nsa>, items: &mut Vec<Expr<'nsa>>, result: &mut HashSet<Expr<'nsa>>) {
+    match product {
         [head, tail @ ..] => {
             for element in head {
                 items.push(element.clone());
