@@ -265,9 +265,9 @@ struct Machine<'nsa> {
 }
 
 impl<'nsa> Machine<'nsa> {
-    fn next(&mut self, program: &Program<'nsa>) -> Result<()> {
-        for case in program.scoped_cases.iter() {
-            if let Some((write, step, next)) = case.type_check_next_case(&program.sets, &self.state, &self.tape[self.head])? {
+    fn next(&mut self, scoped_cases: &[ScopedCase<'nsa>], sets: &Sets<'nsa>) -> Result<()> {
+        for case in scoped_cases {
+            if let Some((write, step, next)) = case.type_check_next_case(sets, &self.state, &self.tape[self.head])? {
                 self.tape[self.head] = write.force_evals()?;
                 let step = step.expect_atom()?.expect_symbol()?;
                 match step.name {
@@ -386,13 +386,6 @@ impl<'nsa> Run<'nsa> {
     }
 }
 
-#[derive(Default)]
-struct Program<'nsa> {
-    scoped_cases: Vec<ScopedCase<'nsa>>,
-    sets: Sets<'nsa>,
-    runs: Vec<Run<'nsa>>,
-}
-
 fn compile_cases_from_statements<'nsa>(set: &Sets<'nsa>, statements: &[Statement<'nsa>]) -> Result<Vec<ScopedCase<'nsa>>> {
     let mut scoped_case = vec![];
     for statement in statements {
@@ -409,7 +402,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
     while let Some(key) = lexer.peek_symbol() {
         match key.name {
             "run" | "trace" => {
-                runs.push(parse_run(lexer)?);
+                runs.push(Run::parse(lexer)?);
             }
             "case" | "for" => {
                 statements.push(Statement::parse(lexer, &sets)?);
@@ -492,9 +485,7 @@ const COMMANDS: &[Command] = &[
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
             let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
 
-            let program = Program{sets, scoped_cases, runs};
-
-            for run in &program.runs {
+            for run in &runs {
                 println!("{loc}: run", loc = run.keyword.loc);
 
                 let tape_default;
@@ -517,7 +508,7 @@ const COMMANDS: &[Command] = &[
                         machine.trace();
                     }
                     machine.halt = true;
-                    machine.next(&program)?;
+                    machine.next(&scoped_cases, &sets)?;
                 }
             }
 
