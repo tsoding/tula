@@ -55,7 +55,14 @@ Halt: 0 0 1 1
 
 ## Compound Expressions
 
-Instead of using just Symbols you can actually use Compound Expressions. Here is a simple example that iterates the Tape of Pairs of Numbers and swaps each pair until it reaches the delimiter `&`:
+Instead of using just Symbols you can actually use Compound Expressions. The syntax of a Compond Expression is similar to [S-expressions](https://en.wikipedia.org/wiki/S-expression) but without the pair syntax. Just Symbols and Lists:
+
+```ebnf
+<expr> ::= <symbol>
+<expr> ::= "(" *<expr> ")"
+```
+
+Here is a simple example that iterates the Tape of Pairs of Numbers and swaps each pair until it reaches the delimiter `&`:
 
 ```js
 case Swap (1 2) (2 1) -> Swap
@@ -370,8 +377,8 @@ Fib: 0 1 0 0 0 0 &
                        ^
 ```
 
-The syntax of an EE is `[<expr> <expr> <expr>]` where `<expr>` is a Compound Expression.
-- First `<expr>` is a Left-Hand Side operand.
+The syntax of an EE is `"[" <expr> <expr> <expr> "]"` where `<expr>` is a Compound Expression.
+- First `<expr>` is the Left-Hand Side operand.
 - Second `<expr>` is the operator.
 - Third `<expr>` is the Right-Hand Side operand.
 
