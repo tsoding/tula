@@ -19,6 +19,10 @@ $ cargo install --path .
 ```console
 $ tula run ./examples/05-rule110.tula
 ```
+5. Expand the example into a form without Universal Quantifiers and Sets:
+```console
+$ tula expand ./examples/05-rule110.tula
+```
 
 ## Base Syntax
 
