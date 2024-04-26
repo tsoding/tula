@@ -39,6 +39,7 @@
   - [x] Forbid in Set Definitions
   - [x] Always Force in Write, Step and Next
 - [ ] Rest of the Operations for Integers and Booleans
+- [ ] Cartesian Products for Sets
 - [ ] Custom Integer overflow/underflow Runtime Errors
   - Right now we get a standard Rust panic
 - [ ] More Magical Sets
