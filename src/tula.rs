@@ -71,6 +71,15 @@ struct Case<'nsa> {
 }
 
 impl<'nsa> Case<'nsa> {
+    fn parse(lexer: &mut Lexer<'nsa>, keyword: Symbol<'nsa>) -> Result<Self> {
+        let state = Expr::parse(lexer)?;
+        let read  = Expr::parse(lexer)?;
+        let write = Expr::parse(lexer)?;
+        let step  = Expr::parse(lexer)?;
+        let next  = Expr::parse(lexer)?;
+        Ok(Case{keyword, state, read, write, step, next})
+    }
+
     fn substitute_var(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Self {
         let Case{keyword, state, read, write, step, next} = self;
         // TODO: don't do this stupid thing, please
@@ -334,19 +343,10 @@ fn compile_cases_from_statements<'nsa>(set: &Sets<'nsa>, statements: &[Statement
     Ok(scoped_case)
 }
 
-fn parse_case<'nsa>(lexer: &mut Lexer<'nsa>, keyword: Symbol<'nsa>) -> Result<Case<'nsa>> {
-    let state = Expr::parse(lexer)?;
-    let read  = Expr::parse(lexer)?;
-    let write = Expr::parse(lexer)?;
-    let step  = Expr::parse(lexer)?;
-    let next  = Expr::parse(lexer)?;
-    Ok(Case{keyword, state, read, write, step, next})
-}
-
 fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<Statement<'nsa>> {
     let key = lexer.expect_symbols(&["case", "for", "{"])?;
     match key.name {
-        "case" => Ok(Statement::Case(parse_case(lexer, key)?)),
+        "case" => Ok(Statement::Case(Case::parse(lexer, key)?)),
         "{" => {
             let mut statements = vec![];
             while let Some(symbol) = lexer.peek_symbol() {
