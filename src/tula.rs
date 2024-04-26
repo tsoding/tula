@@ -540,32 +540,6 @@ const COMMANDS: &[Command] = &[
         },
     },
     Command {
-        name: "expr",
-        signature: "<input-file>",
-        description: "Parse the S-expression from the file to test the behavior of the Parser",
-        run: |command, program_name, mut args| {
-            let source_path;
-            if let Some(arg) = args.next() {
-                source_path = arg;
-            } else {
-                command_usage(program_name, command);
-                return Err(());
-            }
-
-            let source = fs::read_to_string(&source_path).map_err(|err| {
-                eprintln!("ERROR: could not read file {source_path}: {err}");
-            })?;
-
-            let mut lexer = Lexer::new(&source, &source_path);
-            while lexer.peek_symbol().is_some() {
-                let expr = Expr::parse(&mut lexer)?;
-                println!("{loc}: {expr}", loc = expr.loc());
-            }
-
-            Ok(())
-        }
-    },
-    Command {
         name: "expand",
         description: "Expands all the Universal Quantifiers hardcoding all of the cases",
         signature: "[--no-expr] <input.tula>",
