@@ -161,6 +161,57 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
 type Scope<'nsa> = HashMap<Symbol<'nsa>, SetExpr<'nsa>>;
 
 impl<'nsa> Statement<'nsa> {
+    fn parse(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<Self> {
+        let key = lexer.expect_symbols(&["case", "for", "{"])?;
+        match key.name {
+            "case" => Ok(Statement::Case(Case::parse(lexer, key)?)),
+            "{" => {
+                let mut statements = vec![];
+                while let Some(symbol) = lexer.peek_symbol() {
+                    if symbol.name == "}" {
+                        break;
+                    }
+                    statements.push(Statement::parse(lexer, sets)?);
+                }
+                let _ = lexer.expect_symbols(&["}"])?;
+                Ok(Statement::Block{statements})
+            }
+            "for" => {
+                let mut vars = vec![];
+                while let Some(symbol) = lexer.peek_symbol() {
+                    if symbol.name == "in" {
+                        break;
+                    }
+                    let expr = Expr::parse(lexer)?;
+                    match expr {
+                        Expr::Atom(Atom::Symbol(symbol)) => vars.push(symbol),
+                        Expr::Atom(Atom::Integer{symbol: Symbol{loc, ..}, ..}) => {
+                            eprintln!("{loc}: ERROR: Integers may not be used as variable names");
+                            return Err(())
+                        }
+                        Expr::Eval{open_paren: Symbol{loc, ..}, ..} |
+                        Expr::List{open_paren: Symbol{loc, ..}, ..} => {
+                            eprintln!("{loc}: ERROR: Pattern Matching in Universal Quantifiers is not supported");
+                            return Err(())
+                        }
+                    }
+                }
+                let _ = lexer.expect_symbols(&["in"])?;
+                let set = SetExpr::parse(lexer, sets)?;
+                let mut result = Statement::parse(lexer, sets)?;
+                for var in vars.iter().rev() {
+                    result = Statement::For{
+                        var: var.clone(),
+                        set: set.clone(),
+                        body: Box::new(result)
+                    }
+                }
+                Ok(result)
+            }
+            _ => unreachable!()
+        }
+    }
+
     fn compile_to_cases(&self, sets: &Sets<'nsa>, scope: &mut Scope<'nsa>, scoped_cases: &mut Vec<ScopedCase<'nsa>>) -> Result<()> {
         match self {
             Statement::Case(case) => {
@@ -343,57 +394,6 @@ fn compile_cases_from_statements<'nsa>(set: &Sets<'nsa>, statements: &[Statement
     Ok(scoped_case)
 }
 
-fn parse_statement<'nsa>(lexer: &mut Lexer<'nsa>, sets: &Sets<'nsa>) -> Result<Statement<'nsa>> {
-    let key = lexer.expect_symbols(&["case", "for", "{"])?;
-    match key.name {
-        "case" => Ok(Statement::Case(Case::parse(lexer, key)?)),
-        "{" => {
-            let mut statements = vec![];
-            while let Some(symbol) = lexer.peek_symbol() {
-                if symbol.name == "}" {
-                    break;
-                }
-                statements.push(parse_statement(lexer, sets)?);
-            }
-            let _ = lexer.expect_symbols(&["}"])?;
-            Ok(Statement::Block{statements})
-        }
-        "for" => {
-            let mut vars = vec![];
-            while let Some(symbol) = lexer.peek_symbol() {
-                if symbol.name == "in" {
-                    break;
-                }
-                let expr = Expr::parse(lexer)?;
-                match expr {
-                    Expr::Atom(Atom::Symbol(symbol)) => vars.push(symbol),
-                    Expr::Atom(Atom::Integer{symbol: Symbol{loc, ..}, ..}) => {
-                        eprintln!("{loc}: ERROR: Integers may not be used as variable names");
-                        return Err(())
-                    }
-                    Expr::Eval{open_paren: Symbol{loc, ..}, ..} |
-                    Expr::List{open_paren: Symbol{loc, ..}, ..} => {
-                        eprintln!("{loc}: ERROR: Pattern Matching in Universal Quantifiers is not supported");
-                        return Err(())
-                    }
-                }
-            }
-            let _ = lexer.expect_symbols(&["in"])?;
-            let set = SetExpr::parse(lexer, sets)?;
-            let mut result = parse_statement(lexer, sets)?;
-            for var in vars.iter().rev() {
-                result = Statement::For{
-                    var: var.clone(),
-                    set: set.clone(),
-                    body: Box::new(result)
-                }
-            }
-            Ok(result)
-        }
-        _ => unreachable!()
-    }
-}
-
 fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
     let keyword = lexer.expect_symbols(&["run", "trace"])?;
     let state = Expr::parse(lexer)?;
@@ -412,7 +412,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
                 runs.push(parse_run(lexer)?);
             }
             "case" | "for" => {
-                statements.push(parse_statement(lexer, &sets)?);
+                statements.push(Statement::parse(lexer, &sets)?);
             }
             "let" => {
                 lexer.next_symbol();
