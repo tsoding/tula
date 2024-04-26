@@ -219,11 +219,12 @@ for n in { a b c } {
 You can combine the Sets with Union and Difference operations (`+` and `-` infix operators correspondingly)
 
 ```js
+let Numbers { 69 420 }
 let Emoji { 😳 🍆 🔥 💯 }
 
-// For any Emoji or Integer except 🍆 replace it with 🦀.
+// For any Emoji or Numbers except 🍆 replace it with 🦀.
 // This effectively makes the program stop at 🍆 'cause there is no case for it.
-for e in Integer + Emoji - { 🍆 } {
+for e in Numbers + Emoji - { 🍆 } {
     case Crab e 🦀 -> Crab
 }
 
@@ -248,15 +249,15 @@ Crab: 🦀 🦀 🦀 🦀 🍆
 This kind of Set Expressions are also allowed in the Set Definitions:
 
 ```js
+let Numbers { 69 420 }
 let Emoji { 😳 🍆 🔥 💯 }
-let Anything_But_Eggplant ( Integer + Emoji - { 🍆 } )  // Parenthesis for clarity
-let Anything_But_Eggplant Integer + Emoji - { 🍆 }  // Also works without parenthesis
+let Anything_But_Eggplant ( Numbers + Emoji - { 🍆 } )  // Parenthesis for clarity
+let Anything_But_Eggplant Numbers + Emoji - { 🍆 }  // Also works without parenthesis
 ```
 
 ## "Magical" Sets
 
-Tula supports a special "magical" set `Integer` that is infinite
-(actually not, it's `i32`, but you get the point):
+Tula supports a special "magical" set `Integer` that is infinite (actually not, it's `i32`, but you get the point):
 
 ```js
 for a b in Integer
