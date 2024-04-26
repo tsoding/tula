@@ -6,11 +6,11 @@ trace (UTM Inc) {
     (head 1) 1 0 1 0
 }
 
-let State { Inc Dec Halt }
-let Alpha { 0 1 }
+let State  { Inc Dec Halt }
+let Alpha  { 0 1 }
 let Action { -> <- . }
-let Rule State * Alpha * Alpha * Action * State
-let Any Rule + { & } + Alpha
+let Rule   ( State * Alpha * Alpha * Action * State )
+let Any    ( Rule + { & } + Alpha )
 
 for s in State
 for r in Alpha
