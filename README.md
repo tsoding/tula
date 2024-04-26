@@ -373,7 +373,7 @@ Fib: 0 1 0 0 0 0 &
 The syntax of an EE is `[<expr> <expr> <expr>]` where `<expr>` is a Compound Expression.
 - First `<expr>` is a Left-Hand Side operand.
 - Second `<expr>` is the operator.
-- Third `<expr>` is the Right-Hand Side operatnd.
+- Third `<expr>` is the Right-Hand Side operand.
 
 Making operands Compound Expressions allows for nesting like this `[[a % 15] == 0]`. Such EEs are Forced Recursively starting from the Inner ones.
 
