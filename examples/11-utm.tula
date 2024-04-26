@@ -30,10 +30,10 @@ for s in State
 for r in Alpha
 case (Match s r) _ _ <- (Match s r)
 
+for _ in Alpha
 for w in Alpha
 for a in Action
 for n in State
-for _ in Alpha
 case (Write w a n) (head _) w a (Next n)
 
 for _ in Any
