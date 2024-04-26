@@ -456,7 +456,7 @@ fn program_usage(program_name: &str) {
 fn command_usage(program_name: &str, command: &Command) {
     let command_name = &command.name;
     let command_signature = &command.signature;
-    eprintln!("Usage: {program_name} {command_name} {command_signature}")
+    eprintln!("Usage: {program_name} {command_name} {command_signature}");
 }
 
 struct Command {
@@ -517,29 +517,6 @@ const COMMANDS: &[Command] = &[
         }
     },
     Command {
-        name: "lex",
-        description: "Lex the given file to see how the Lexer behaves",
-        signature: "<input-file>",
-        run: |command, program_name, mut args| {
-            let input_path;
-            if let Some(arg) = args.next() {
-                input_path = arg;
-            } else {
-                command_usage(program_name, command);
-                return Err(());
-            }
-
-            let input_source = fs::read_to_string(&input_path).map_err(|err| {
-                eprintln!("ERROR: could not read file {input_path}: {err}");
-            })?;
-
-            for Symbol{loc, name} in Lexer::new(&input_source, &input_path) {
-                println!("{loc}: {name}");
-            }
-            Ok(())
-        },
-    },
-    Command {
         name: "expand",
         description: "Expands all the Universal Quantifiers hardcoding all of the cases",
         signature: "[--no-expr] <input.tula>",
@@ -582,6 +559,48 @@ const COMMANDS: &[Command] = &[
             }
             Ok(())
         },
+    },
+    Command {
+        name: "lex",
+        description: "Lex the given file to see how the Lexer behaves",
+        signature: "<input.tula>",
+        run: |command, program_name, mut args| {
+            let input_path;
+            if let Some(arg) = args.next() {
+                input_path = arg;
+            } else {
+                command_usage(program_name, command);
+                return Err(());
+            }
+
+            let input_source = fs::read_to_string(&input_path).map_err(|err| {
+                eprintln!("ERROR: could not read file {input_path}: {err}");
+            })?;
+
+            for Symbol{loc, name} in Lexer::new(&input_source, &input_path) {
+                println!("{loc}: {name}");
+            }
+            Ok(())
+        },
+    },
+    Command {
+        name: "help",
+        description: "Prints help about commands",
+        signature: "[command]",
+        run: |_command, program_name: &str, mut args: env::Args| {
+            if let Some(command_name) = args.next() {
+                if let Some(command) = COMMANDS.iter().find(|command| command.name == command_name) {
+                    command_usage(program_name, command)
+                } else {
+                    program_usage(program_name);
+                    eprintln!("ERROR: unknown command {command_name}");
+                    return Err(())
+                }
+            } else {
+                program_usage(program_name)
+            }
+            Ok(())
+        }
     }
 ];
 
