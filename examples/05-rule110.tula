@@ -1,16 +1,26 @@
 let Cells { . # }
 
-case Entry & & -> I
+run Entry { % . . . . . . . . . . . . . . . # . & 1 1 1 1 1 1 1 1 1 1 1 1 1 0 }
 
+case Entry % % ! I
+
+case I % % -> I
 for a     in Cells case I       a a -> (I a)
 for a b   in Cells case (I a)   b b -> (I a b)
 for a b c in Cells case (I a b) c c <- (R a b c)
 for a b   in Cells case (I a b) & & .  Print
 
-case Print  & & !  Skip
-case Skip   & & <- Reset
-for a in Cells case Reset a a <- Reset
-case Reset & & -> I
+case Print & & ! Dec
+
+case Dec 0 0 <- Dec1
+for _ in { 1 & } case Dec _ _ -> Dec
+case Dec1 1 0 <- Reset
+case Dec1 & & . Halt
+
+case Reset % % -> I
+for _ in Cells + { 1 & } {
+    case Reset _ _ <- Reset
+}
 
 for _ in Cells {
     case (R . . .) _ . -> (I .)
@@ -22,7 +32,3 @@ for _ in Cells {
     case (R # # .) _ # -> (I #)
     case (R # # #) _ . -> (I #)
 }
-
-// TODO: how to limit the amount of iterations
-// Maybe some sort of unary counter after the tape
-run Entry { & . . . . . . . . . . . . . . . # . & }
