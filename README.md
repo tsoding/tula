@@ -4,6 +4,22 @@
 
 *The Language is currently in Development. So the Source Code is not available yet. The Development is happening at https://twitch.tv/tsoding The Source Code will be available as soon as I feel like the project is ready. Also I'll be making a detailed Video about this Language on my YouTube channel https://youtube.com/@Tsoding*
 
+## Quick Start
+
+1. Install [Rust Compiler](https://www.rust-lang.org/learn/get-started)
+2. Clone this repo:
+```console
+$ git clone https://github.com/tsoding/tula && cd tula
+```
+3. Install the compiler to `~/.cargo/bin/` (it should be already in your `$PATH` after rustup installation)
+```console
+$ cargo install --path .
+```
+4. Run some examples:
+```console
+$ tula run ./examples/05-rule110.tula
+```
+
 ## Base Syntax
 
 The program consist of sequence of rules:
