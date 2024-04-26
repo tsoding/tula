@@ -377,7 +377,7 @@ The syntax of an EE is `[<expr> <expr> <expr>]` where `<expr>` is a Compound Exp
 
 Making operands Compound Expressions allows for nesting like this `[[a % 15] == 0]`. Such EEs are Forced Recursively starting from the Inner ones.
 
-Since the operator is also a Compound Expression it is possible to substitute as well:
+Since the operator is also a Compound Expression it is possible to substitute them as well:
 
 ```js
 let Op { + - }
