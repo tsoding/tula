@@ -1,6 +1,6 @@
 # Tula
 
-**Tu**ring **La**nguage. An [Esoteric Programming Language](https://en.wikipedia.org/wiki/Esoteric_programming_language) based on [Turing Machine](https://en.wikipedia.org/wiki/Turing_machine) extended with [Set Theory](https://en.wikipedia.org/wiki/Set_theory), Compound Expressions.
+Tula (**Tu**ring **La**nguage) is an [Esoteric Programming Language](https://en.wikipedia.org/wiki/Esoteric_programming_language) based on [Turing Machine](https://en.wikipedia.org/wiki/Turing_machine) extended with [Set Theory](https://en.wikipedia.org/wiki/Set_theory), Compound Expressions.
 
 *The Language is currently in Development. So the Source Code is not available yet. The Development is happening at https://twitch.tv/tsoding The Source Code will be available as soon as I feel like the project is ready. Also I'll be making a detailed Video about this Language on my YouTube channel https://youtube.com/@Tsoding*
 
