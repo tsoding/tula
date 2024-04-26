@@ -186,12 +186,12 @@ impl<'nsa> Statement<'nsa> {
                     let expr = Expr::parse(lexer)?;
                     match expr {
                         Expr::Atom(Atom::Symbol(symbol)) => vars.push(symbol),
-                        Expr::Atom(Atom::Integer{symbol: Symbol{loc, ..}, ..}) => {
+                        Expr::Atom(Atom::Integer{loc, ..}) => {
                             eprintln!("{loc}: ERROR: Integers may not be used as variable names");
                             return Err(())
                         }
-                        Expr::Eval{open_paren: Symbol{loc, ..}, ..} |
-                        Expr::List{open_paren: Symbol{loc, ..}, ..} => {
+                        Expr::Eval{loc, ..} |
+                        Expr::List{loc, ..} => {
                             eprintln!("{loc}: ERROR: Pattern Matching in Universal Quantifiers is not supported");
                             return Err(())
                         }
@@ -412,7 +412,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
                 lexer.next_symbol();
                 let name = match Atom::from_symbol(lexer.parse_symbol()?) {
                     Atom::Symbol(name) => name,
-                    Atom::Integer{symbol: Symbol{loc, ..}, ..} => {
+                    Atom::Integer{loc, ..} => {
                         eprintln!("{loc}: ERROR: set name may not be an integer");
                         return Err(())
                     }

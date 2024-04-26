@@ -9,7 +9,15 @@ pub type Sets<'nsa> = HashMap<Symbol<'nsa>, SetExpr<'nsa>>;
 #[derive(Debug, Clone)]
 pub enum SetExpr<'nsa> {
     Named(Symbol<'nsa>),
+    /// Set Expression wrapped in parenthesis.
+    ///
+    /// loc points at the left most `(`
+    Enclosed {
+        loc: Loc<'nsa>,
+        inner: Box<SetExpr<'nsa>>
+    },
     Anonymous {
+        loc: Loc<'nsa>,
         elements: HashSet<Expr<'nsa>>
     },
     Integer(Symbol<'nsa>),
@@ -31,7 +39,8 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
         match self {
             Self::Named(name) => write!(f, "{name}"),
             Self::Integer(_) => write!(f, "Integer"),
-            Self::Product {elements} => {
+            Self::Enclosed{inner, ..} => write!(f, "({inner})"),
+            Self::Product {elements, ..} => {
                 for (i, element) in elements.iter().enumerate() {
                     if i > 0 {
                         write!(f, " * ")?;
@@ -40,7 +49,7 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
                 }
                 Ok(())
             }
-            Self::Anonymous {elements} => {
+            Self::Anonymous {elements, ..} => {
                 write!(f, "{{")?;
                 for (i, element) in elements.iter().enumerate() {
                     if i > 0 {
@@ -57,6 +66,18 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
 }
 
 impl<'nsa> SetExpr<'nsa> {
+    fn loc(&self) -> &Loc<'nsa> {
+        match self {
+            Self::Named(Symbol{loc, ..}) => &loc,
+            Self::Enclosed{loc, ..} => &loc,
+            Self::Anonymous{loc, ..} => &loc,
+            Self::Integer(Symbol{loc, ..}) => &loc,
+            Self::Union {lhs, ..} => lhs.loc(),
+            Self::Diff {lhs, ..} => lhs.loc(),
+            Self::Product {elements} => elements.get(0).expect("Parser must not produce products that have 0 elements").loc(),
+        }
+    }
+
     fn parse_anonymous(lexer: &mut Lexer<'nsa>) -> Result<HashSet<Expr<'nsa>>> {
         let _ = lexer.expect_symbols(&["{"])?;
         let mut set: HashSet<Expr<'nsa>> = HashSet::new();
@@ -84,18 +105,21 @@ impl<'nsa> SetExpr<'nsa> {
         let set = match symbol.name {
             "{" => {
                 let elements = Self::parse_anonymous(lexer)?;
-                Self::Anonymous {elements}
+                Self::Anonymous {
+                    loc: symbol.loc.clone(),
+                    elements
+                }
             },
             "(" => {
-                let _ = lexer.next_symbol().unwrap();
-                let inner = Self::parse(lexer, sets)?;
+                let open_paren = lexer.next_symbol().unwrap();
+                let inner = Box::new(Self::parse(lexer, sets)?);
                 lexer.expect_symbols(&[")"])?;
-                inner
+                Self::Enclosed{loc: open_paren.loc, inner}
             }
             _ => {
                 let _ = lexer.next_symbol().unwrap();
                 match Atom::from_symbol(symbol) {
-                    Atom::Integer{symbol: Symbol{loc, ..}, ..} => {
+                    Atom::Integer{loc, ..} => {
                         eprintln!("{loc}: ERROR: integer is not a set expression");
                         return Err(())
                     }
@@ -162,6 +186,7 @@ impl<'nsa> SetExpr<'nsa> {
 
     pub fn contains(&self, sets: &Sets<'nsa>, element: &Expr<'nsa>) -> bool {
         match self {
+            Self::Enclosed{inner, ..} => inner.contains(sets, element),
             Self::Product{elements: product_elements} => {
                 match element {
                     Expr::List{items: elements, ..} => {
@@ -182,7 +207,7 @@ impl<'nsa> SetExpr<'nsa> {
             }
             Self::Union{lhs, rhs} => lhs.contains(sets, element) || rhs.contains(sets, element),
             Self::Diff{lhs, rhs} => lhs.contains(sets, element) && !rhs.contains(sets, element),
-            Self::Anonymous{elements} => elements.contains(element),
+            Self::Anonymous{elements, ..} => elements.contains(element),
             Self::Integer(_)=> {
                 if let Expr::Atom(Atom::Integer{..}) = element {
                     true
@@ -207,12 +232,13 @@ impl<'nsa> SetExpr<'nsa> {
                 }
                 let mut items = vec![];
                 let mut result = HashSet::new();
-                expand_product_recursively(&expanded_elements, &mut items, &mut result);
+                expand_product_recursively(&expanded_elements, self.loc(), &mut items, &mut result);
                 Ok(result)
             }
+            Self::Enclosed{inner, ..} => inner.expand(sets),
             Self::Union{lhs, rhs} => Ok(lhs.expand(sets)?.union(&rhs.expand(sets)?).cloned().collect()),
             Self::Diff{lhs, rhs} => Ok(lhs.expand(sets)?.difference(&rhs.expand(sets)?).cloned().collect()),
-            Self::Anonymous{elements} => Ok(elements.clone()),
+            Self::Anonymous{elements, ..} => Ok(elements.clone()),
             Self::Integer(Symbol{loc, ..})=> {
                 eprintln!("{loc}: Impossible to expand set Integer: it's too big");
                 Err(())
@@ -226,22 +252,17 @@ impl<'nsa> SetExpr<'nsa> {
     }
 }
 
-fn expand_product_recursively<'nsa>(expanded_elements: &[HashSet<Expr<'nsa>>], items: &mut Vec<Expr<'nsa>>, result: &mut HashSet<Expr<'nsa>>) {
+fn expand_product_recursively<'nsa>(expanded_elements: &[HashSet<Expr<'nsa>>], item_loc: &Loc<'nsa>, items: &mut Vec<Expr<'nsa>>, result: &mut HashSet<Expr<'nsa>>) {
     match expanded_elements {
         [head, tail @ ..] => {
             for element in head {
                 items.push(element.clone());
-                expand_product_recursively(tail, items, result);
+                expand_product_recursively(tail, item_loc, items, result);
                 items.pop();
             }
         }
         [] => {
-            // TODO: figure out a proper open_paren for this case
-            let open_paren = Symbol{
-                name: "(",
-                loc: loc_here!(),
-            };
-            let new = result.insert(Expr::List{items: items.clone(), open_paren});
+            let new = result.insert(Expr::List{items: items.clone(), loc: item_loc.clone()});
             assert!(new);
         }
     }

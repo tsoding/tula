@@ -8,8 +8,8 @@ use std::hash::{Hash, Hasher};
 pub enum Atom<'nsa> {
     Symbol(Symbol<'nsa>),
     Integer {
+        loc: Loc<'nsa>,
         value: i32,
-        symbol: Symbol<'nsa>,
     },
 }
 
@@ -26,7 +26,7 @@ impl<'nsa> Atom<'nsa> {
 
     pub fn expect_symbol(&self) -> Result<&Symbol<'nsa>> {
         match self {
-            Self::Integer{symbol: Symbol{loc, ..}, ..} => {
+            Self::Integer{loc, ..} => {
                 eprintln!("{loc}: ERROR: expected symbol but got integer");
                 Err(())
             }
@@ -36,7 +36,7 @@ impl<'nsa> Atom<'nsa> {
 
     pub fn from_symbol(symbol: Symbol<'nsa>) -> Self {
         match symbol.name.parse::<i32>() {
-            Ok(value) => Atom::Integer{symbol, value},
+            Ok(value) => Atom::Integer{loc: symbol.loc, value},
             // TODO: throw a warning if number is treated as a symbol because of an overflow or other stupid reason
             Err(_) => Atom::Symbol(symbol),
         }
@@ -75,14 +75,14 @@ impl<'nsa> PartialEq for Atom<'nsa> {
 pub enum Expr<'nsa> {
     Atom(Atom<'nsa>),
     Eval {
-        open_paren: Symbol<'nsa>,
+        loc: Loc<'nsa>,
         lhs: Box<Expr<'nsa>>,
         op: Box<Expr<'nsa>>,
         rhs: Box<Expr<'nsa>>,
     },
     // TODO: Expr::List should be actually called Expr::Tuple
     List {
-        open_paren: Symbol<'nsa>,
+        loc: Loc<'nsa>,
         // TODO: Expr::List::items should be called Expr::List::elements
         items: Vec<Expr<'nsa>>
     },
@@ -206,11 +206,11 @@ impl<'nsa> Expr<'nsa> {
     pub fn expect_atom(&self) -> Result<&Atom<'nsa>> {
         match self {
             Self::Atom(atom) => Ok(atom),
-            Self::List{open_paren: Symbol{loc, ..}, ..} => {
+            Self::List{loc, ..} => {
                 eprintln!("{loc}: ERROR: expected atom but got list");
                 Err(())
             }
-            Self::Eval{open_paren: Symbol{loc, ..}, ..} => {
+            Self::Eval{loc, ..} => {
                 eprintln!("{loc}: ERROR: expected atom but got eval");
                 Err(())
             }
@@ -220,14 +220,14 @@ impl<'nsa> Expr<'nsa> {
     pub fn force_evals(self) -> Result<Expr<'nsa>> {
         match self {
             Self::Atom(_) => Ok(self),
-            Self::List{open_paren, items} => {
+            Self::List{loc, items} => {
                 let mut new_items = vec![];
                 for item in items {
                     new_items.push(item.force_evals()?)
                 }
-                Ok(Self::List{open_paren, items: new_items})
+                Ok(Self::List{loc, items: new_items})
             }
-            Self::Eval{open_paren, lhs, op, rhs} => {
+            Self::Eval{loc, lhs, op, rhs} => {
                 let lhs = lhs.force_evals()?.expect_atom()?.clone();
                 match lhs {
                     Atom::Integer{value: lhs, ..} => {
@@ -235,47 +235,47 @@ impl<'nsa> Expr<'nsa> {
                         let op  = op.force_evals()?.expect_atom()?.expect_symbol()?.clone();
                         match op.name {
                             "+" => Ok(Expr::Atom(Atom::Integer {
-                                symbol: open_paren,
+                                loc,
                                 value: lhs + rhs,
                             })),
                             "-" => Ok(Expr::Atom(Atom::Integer {
-                                symbol: open_paren,
+                                loc,
                                 value: lhs - rhs,
                             })),
                             "*" => Ok(Expr::Atom(Atom::Integer {
-                                symbol: open_paren,
+                                loc,
                                 value: lhs * rhs,
                             })),
                             "/" => Ok(Expr::Atom(Atom::Integer {
-                                symbol: open_paren,
+                                loc,
                                 value: lhs / rhs,
                             })),
                             "%" => Ok(Expr::Atom(Atom::Integer {
-                                symbol: open_paren,
+                                loc,
                                 value: lhs % rhs,
                             })),
                             ">" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs > rhs),
                             }))),
                             ">=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs >= rhs),
                             }))),
                             "<" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs < rhs),
                             }))),
                             "<=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs <= rhs),
                             }))),
                             "==" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs == rhs),
                             }))),
                             "!=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs != rhs),
                             }))),
                             _ => {
@@ -290,19 +290,19 @@ impl<'nsa> Expr<'nsa> {
                         let op  = op.force_evals()?.expect_atom()?.expect_symbol()?.clone();
                         match op.name {
                             "||" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs || rhs),
                             }))),
                             "&&" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs && rhs),
                             }))),
                             "==" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs == rhs),
                             }))),
                             "!=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
-                                loc: open_paren.loc,
+                                loc,
                                 name: bool_to_str(lhs != rhs),
                             }))),
                             _ => {
@@ -343,15 +343,15 @@ impl<'nsa> Expr<'nsa> {
                 }
             }
             Self::Atom(Atom::Integer{..}) => self.clone(),
-            Self::Eval{open_paren, lhs, op, rhs} => {
+            Self::Eval{loc, lhs, op, rhs} => {
                 let lhs = Box::new(lhs.substitute_bindings(bindings));
                 let op  = Box::new(op.substitute_bindings(bindings));
                 let rhs = Box::new(rhs.substitute_bindings(bindings));
-                Self::Eval{open_paren: *open_paren, lhs, op, rhs}
+                Self::Eval{loc: *loc, lhs, op, rhs}
             }
-            Self::List{open_paren, items} => {
+            Self::List{loc, items} => {
                 let items = items.iter().map(|item| item.substitute_bindings(bindings)).collect();
-                Self::List{open_paren: *open_paren, items}
+                Self::List{loc: *loc, items}
             }
         }
     }
@@ -365,7 +365,7 @@ impl<'nsa> Expr<'nsa> {
                 let rhs = Box::new(Expr::parse(lexer)?);
                 let _ = lexer.expect_symbols(&["]"])?;
                 Ok(Self::Eval {
-                    lhs, op, rhs, open_paren: symbol
+                    lhs, op, rhs, loc: symbol.loc
                 })
             }
             "(" => {
@@ -378,7 +378,7 @@ impl<'nsa> Expr<'nsa> {
                 }
                 let _ = lexer.expect_symbols(&[")"])?;
                 Ok(Self::List {
-                    open_paren: symbol,
+                    loc: symbol.loc,
                     items,
                 })
             }
@@ -388,8 +388,8 @@ impl<'nsa> Expr<'nsa> {
 
     pub fn loc(&self) -> &Loc<'nsa> {
         match self {
-            Self::Atom(Atom::Symbol(symbol)) | Self::Atom(Atom::Integer{symbol, ..}) => &symbol.loc,
-            Self::List{open_paren, ..} | Self::Eval{open_paren, ..} => &open_paren.loc,
+            Self::Atom(Atom::Symbol(symbol)) => &symbol.loc,
+            Self::List{loc, ..} | Self::Eval{loc, ..} | Self::Atom(Atom::Integer{loc, ..}) => &loc,
         }
     }
 
