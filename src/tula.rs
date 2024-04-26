@@ -334,19 +334,6 @@ impl<'nsa> Machine<'nsa> {
     }
 }
 
-fn parse_seq_of_exprs<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Expr<'nsa>>)> {
-    let open_curly = lexer.expect_symbols(&["{"])?;
-    let mut seq = vec![];
-    while let Some(symbol) = lexer.peek_symbol() {
-        if symbol.name == "}" {
-            break;
-        }
-        seq.push(Expr::parse(lexer)?.force_evals()?);
-    }
-    let _ = lexer.expect_symbols(&["}"])?;
-    Ok((open_curly, seq))
-}
-
 struct Run<'nsa> {
     keyword: Symbol<'nsa>,
     state: Expr<'nsa>,
@@ -356,6 +343,27 @@ struct Run<'nsa> {
 }
 
 impl<'nsa> Run<'nsa> {
+    fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
+        let keyword = lexer.expect_symbols(&["run", "trace"])?;
+        let state = Expr::parse(lexer)?;
+        let (open_curly_of_tape, tape) = Self::parse_tape(lexer)?;
+        let trace = keyword.name == "trace";
+        Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
+    }
+
+    fn parse_tape(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Expr<'nsa>>)> {
+        let open_curly = lexer.expect_symbols(&["{"])?;
+        let mut seq = vec![];
+        while let Some(symbol) = lexer.peek_symbol() {
+            if symbol.name == "}" {
+                break;
+            }
+            seq.push(Expr::parse(lexer)?.force_evals()?);
+        }
+        let _ = lexer.expect_symbols(&["}"])?;
+        Ok((open_curly, seq))
+    }
+
     fn expand(&self, normalize: bool) {
         if self.trace {
             print!("trace");
@@ -392,14 +400,6 @@ fn compile_cases_from_statements<'nsa>(set: &Sets<'nsa>, statements: &[Statement
         statement.compile_to_cases(set, &mut scope, &mut scoped_case)?;
     }
     Ok(scoped_case)
-}
-
-fn parse_run<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<Run<'nsa>> {
-    let keyword = lexer.expect_symbols(&["run", "trace"])?;
-    let state = Expr::parse(lexer)?;
-    let (open_curly_of_tape, tape) = parse_seq_of_exprs(lexer)?;
-    let trace = keyword.name == "trace";
-    Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
 }
 
 fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<Statement<'nsa>>, Vec<Run<'nsa>>)> {
