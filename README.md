@@ -277,7 +277,7 @@ let Anything_But_Eggplant Numbers + Emoji - { 🍆 }  // Also works without pare
 
 ### Cartesian Products
 
-One special operations on the Sets allows you to create [Cartesian Products](https://en.wikipedia.org/wiki/Cartesian_product) of them. Here is how you can Skip all Pairs of Numbers without using nested Universal Quantifiers:
+One special operation on the Sets allows you to create [Cartesian Products](https://en.wikipedia.org/wiki/Cartesian_product) of them. Here is how you can Skip all Pairs of Numbers without using nested Universal Quantifiers:
 
 ```js
 let Number { 1 2 3 4 }
