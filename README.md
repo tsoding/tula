@@ -275,6 +275,33 @@ let Anything_But_Eggplant ( Numbers + Emoji - { 🍆 } )  // Parenthesis for cla
 let Anything_But_Eggplant Numbers + Emoji - { 🍆 }  // Also works without parenthesis
 ```
 
+### Cartesian Products
+
+One special operations on the Sets always you to create [Cartesian Products](https://en.wikipedia.org/wiki/Cartesian_product) of them. Here is how you can skip all Pairs of Numbers:
+
+```js
+let Number { 1 2 3 4 }
+let Pair Number * Number
+
+for _ in Pair
+case Skip _ _ -> Skip
+
+trace Skip { (1 2) (2 3) (3 4) & }
+```
+
+The trace of the above program:
+
+```
+Skip: (1 2) (2 3) (3 4) &
+      ^~~~~
+Skip: (1 2) (2 3) (3 4) &
+            ^~~~~
+Skip: (1 2) (2 3) (3 4) &
+                  ^~~~~
+Skip: (1 2) (2 3) (3 4) &
+                        ^
+```
+
 ## "Magical" Sets
 
 Tula supports a special "magical" set `Integer` that is infinite (actually not, it's `i32`, but you get the point):
