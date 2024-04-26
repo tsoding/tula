@@ -5,6 +5,16 @@ use super::Result;
 
 pub const SPECIAL: &[char] = &['(', ')', '{', '}', '[', ']', '.'];
 
+macro_rules! loc_here {
+    () => {
+        Loc {
+            file_path: file!(),
+            row: line!() as usize,
+            col: column!() as usize,
+        }
+    };
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Loc<'nsa> {
     pub file_path: &'nsa str,

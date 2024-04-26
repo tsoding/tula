@@ -1,3 +1,4 @@
+#[macro_use]
 mod lexer;
 mod expr;
 mod set_expr;
@@ -96,7 +97,7 @@ impl<'nsa> Case<'nsa> {
         Case{keyword, state, read, write, step, next}
     }
 
-    fn expand_recursively(&self, scope: &Vec<(Symbol<'nsa>, Vec<Expr<'nsa>>)>, index: usize, normalize: bool) -> Result<()> {
+    fn expand_recursively(&self, scope: &[(Symbol<'nsa>, Vec<Expr<'nsa>>)], index: usize, normalize: bool) -> Result<()> {
         if index >= scope.len() {
             let Case{keyword, state, read, write, step, next} = self.clone();
             let write = write.clone().force_evals()?;

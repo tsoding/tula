@@ -1,6 +1,6 @@
 use std::collections::{HashSet, HashMap};
 use std::fmt;
-use super::lexer::{Lexer, Symbol};
+use super::lexer::{Lexer, Symbol, Loc};
 use super::expr::{Expr, Atom};
 use super::Result;
 
@@ -200,8 +200,15 @@ impl<'nsa> SetExpr<'nsa> {
 
     pub fn expand(&self, sets: &Sets<'nsa>) -> Result<HashSet<Expr<'nsa>>> {
         match self {
-            Self::Product{..} => {
-                todo!("Expansion of products")
+            Self::Product{elements} => {
+                let mut expanded_elements = vec![];
+                for element in elements.iter() {
+                    expanded_elements.push(element.expand(sets)?)
+                }
+                let mut items = vec![];
+                let mut result = HashSet::new();
+                expand_product_recursively(&expanded_elements, &mut items, &mut result);
+                Ok(result)
             }
             Self::Union{lhs, rhs} => Ok(lhs.expand(sets)?.union(&rhs.expand(sets)?).cloned().collect()),
             Self::Diff{lhs, rhs} => Ok(lhs.expand(sets)?.difference(&rhs.expand(sets)?).cloned().collect()),
@@ -215,6 +222,27 @@ impl<'nsa> SetExpr<'nsa> {
                     .expect("The existence of all Named Set Expressions must be checked upfront")
                     .expand(sets)
             }
+        }
+    }
+}
+
+fn expand_product_recursively<'nsa>(expanded_elements: &[HashSet<Expr<'nsa>>], items: &mut Vec<Expr<'nsa>>, result: &mut HashSet<Expr<'nsa>>) {
+    match expanded_elements {
+        [head, tail @ ..] => {
+            for element in head {
+                items.push(element.clone());
+                expand_product_recursively(tail, items, result);
+                items.pop();
+            }
+        }
+        [] => {
+            // TODO: figure out a proper open_paren for this case
+            let open_paren = Symbol{
+                name: "(",
+                loc: loc_here!(),
+            };
+            let new = result.insert(Expr::List{items: items.clone(), open_paren});
+            assert!(new);
         }
     }
 }

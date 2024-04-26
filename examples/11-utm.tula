@@ -13,15 +13,12 @@ let Rule State * Alpha * Alpha * Action * State
 let Any Rule + { & } + Alpha
 
 for s in State
-case (UTM s) % % -> (Read s)
-
-for s in State
 for r in Alpha
-case (Read s) (head r) (head r) <- (Match s r)
+case (UTM s) (head r) (head r) <- (Match s r)
  
-for _ in Any
+for _ in Any + { % }
 for s in State
-case (Read s) _ _ -> (Read s)
+case (UTM s) _ _ -> (UTM s)
 
 for s n in State
 for r w in Alpha
