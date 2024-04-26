@@ -454,3 +454,6 @@ Eval: 69 (500 80 -) &
 Eval: 69 420 &
              ^
 ```
+
+- Supported Integer operations: `+`, `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=`, `==`, `!=`.
+- Supported Boolean operations: `&&`, `||`, `==`, `!=` (Boolean is either symbol `true` or symbol `false`).
