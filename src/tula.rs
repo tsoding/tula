@@ -56,7 +56,7 @@ impl<'nsa> ScopedCase<'nsa> {
         for (var, set) in self.scope.iter() {
             scope.push((*var, set.expand(sets)?.iter().cloned().collect()))
         }
-        self.case.expand_recursively(&scope, 0, normalize)?;
+        self.case.expand_recursively(&scope, normalize)?;
         Ok(())
     }
 }
@@ -97,26 +97,28 @@ impl<'nsa> Case<'nsa> {
         Case{keyword, state, read, write, step, next}
     }
 
-    fn expand_recursively(&self, scope: &[(Symbol<'nsa>, Vec<Expr<'nsa>>)], index: usize, normalize: bool) -> Result<()> {
-        if index >= scope.len() {
-            let Case{keyword, state, read, write, step, next} = self.clone();
-            let write = write.clone().force_evals()?;
-            let step = step.clone().force_evals()?;
-            let next = next.clone().force_evals()?;
-            if normalize {
-                let state = NormExpr(&state);
-                let read = NormExpr(&read);
-                let write = NormExpr(&write);
-                let step = NormExpr(&step);
-                let next = NormExpr(&next);
-                println!("{keyword} {state} {read} {write} {step} {next}");
-            } else {
-                println!("{keyword} {state} {read} {write} {step} {next}");
+    fn expand_recursively(&self, scope: &[(Symbol<'nsa>, Vec<Expr<'nsa>>)], normalize: bool) -> Result<()> {
+        match scope {
+            [] => {
+                let Case{keyword, state, read, write, step, next} = self.clone();
+                let write = write.clone().force_evals()?;
+                let step = step.clone().force_evals()?;
+                let next = next.clone().force_evals()?;
+                if normalize {
+                    let state = NormExpr(&state);
+                    let read = NormExpr(&read);
+                    let write = NormExpr(&write);
+                    let step = NormExpr(&step);
+                    let next = NormExpr(&next);
+                    println!("{keyword} {state} {read} {write} {step} {next}");
+                } else {
+                    println!("{keyword} {state} {read} {write} {step} {next}");
+                }
             }
-        } else {
-            let (var, set) = &scope[index];
-            for element in set {
-                self.substitute_var(*var, element.clone()).expand_recursively(scope, index + 1, normalize)?
+            [(var, set), tail @ ..] => {
+                for element in set {
+                    self.substitute_var(*var, element.clone()).expand_recursively(tail, normalize)?
+                }
             }
         }
         Ok(())
