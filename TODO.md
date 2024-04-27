@@ -82,6 +82,8 @@
   ```
   - I'm indecisive on this one because it's unclear what types `a` and
     `b` should be in this case
+  - It's also unclear what to do with the elements of the set that don't
+    match the pattern
 - [ ] Magical set `Any`
   - Finite set of all the used expressions in the program.
   - Useful for skipping anything
