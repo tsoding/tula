@@ -1,0 +1,12 @@
+// https://projecteuler.net/problem=3
+
+// run (Factor 13195 2) { 0 }
+run (Factor 600851475143 2) { 0 }
+
+for _ in Integer case (Factor 1 _) 0 0 ! Halt
+
+for n f in Integer {
+    case (Factor n f)      0 0 .  (Check n f [[n % f] == 0])
+    case (Check n f true)  0 f -> (Factor [n / f] f)
+    case (Check n f false) 0 0 .  (Factor n [f + 1])
+}
