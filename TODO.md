@@ -93,11 +93,22 @@
   - Set of all expressions that are used as State of the problem
   - Useful for defining "Callbacks"
   - Actually such Set might end up recursive
-- [x] Sets of sets
+- [ ] Subsitutions in Set Expressions
   ```tula
   for s in Sets
   for a in s
   ```
-  This is basically an easier version of Union Sets
-  We've got Union Sets. There is no need for this anymore
+  - This is basically an easier version of Union Sets
+  - We've got Union Sets. There is no need for this anymore
+  - Actually we may substitute things withing sub expressions
+  ```js
+  for delim in Delim
+  for _ in Bit + Delim - { delim }
+  for dir in Dir
+  for phase in Phase
+  case (Switch delim dir phase) _ _ dir (Switch delim dir phase)
+  ```
+  - But this is damn hard! You need to first "materialize" delim via the pattern matching, etc, etc
 - [ ] Integer sets via ranges
+- [ ] Proper infix expressions inside of Evals
+  - Since operators themselves also can be substituted I'm not sure how to go about it...
