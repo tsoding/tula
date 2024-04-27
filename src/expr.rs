@@ -3,6 +3,7 @@ use std::fmt;
 use std::collections::HashMap;
 use super::{Result, Scope};
 use std::hash::{Hash, Hasher};
+use std::num::IntErrorKind;
 
 #[derive(Debug, Clone)]
 pub enum Atom<'nsa> {
@@ -34,11 +35,22 @@ impl<'nsa> Atom<'nsa> {
         }
     }
 
-    pub fn from_symbol(symbol: Symbol<'nsa>) -> Self {
+    pub fn from_symbol(symbol: Symbol<'nsa>) -> Result<Self> {
         match symbol.name.parse::<i32>() {
-            Ok(value) => Atom::Integer{loc: symbol.loc, value},
-            // TODO: throw a warning if number is treated as a symbol because of an overflow or other stupid reason
-            Err(_) => Atom::Symbol(symbol),
+            Ok(value) => Ok(Atom::Integer{loc: symbol.loc, value}),
+            Err(err) => {
+                match err.kind() {
+                    IntErrorKind::PosOverflow => {
+                        eprintln!("{loc}: ERROR: could not parse Integer because positive overflow", loc = symbol.loc);
+                        Err(())
+                    }
+                    IntErrorKind::NegOverflow => {
+                        eprintln!("{loc}: ERROR: could not parse Integer because negative overflow", loc = symbol.loc);
+                        Err(())
+                    }
+                    _ => Ok(Atom::Symbol(symbol))
+                }
+            }
         }
     }
 }
@@ -406,7 +418,7 @@ impl<'nsa> Expr<'nsa> {
                     items,
                 })
             }
-            _ => Ok(Expr::Atom(Atom::from_symbol(symbol)))
+            _ => Ok(Expr::Atom(Atom::from_symbol(symbol)?))
         }
     }
 

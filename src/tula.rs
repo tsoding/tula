@@ -412,7 +412,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
             }
             "let" => {
                 lexer.next_symbol();
-                let name = match Atom::from_symbol(lexer.parse_symbol()?) {
+                let name = match Atom::from_symbol(lexer.parse_symbol()?)? {
                     Atom::Symbol(name) => name,
                     Atom::Integer{loc, ..} => {
                         eprintln!("{loc}: ERROR: set name may not be an integer");

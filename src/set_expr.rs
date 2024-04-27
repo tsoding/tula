@@ -118,7 +118,7 @@ impl<'nsa> SetExpr<'nsa> {
             }
             _ => {
                 let _ = lexer.next_symbol().unwrap();
-                match Atom::from_symbol(symbol) {
+                match Atom::from_symbol(symbol)? {
                     Atom::Integer{loc, ..} => {
                         eprintln!("{loc}: ERROR: integer is not a set expression");
                         return Err(())
