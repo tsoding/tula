@@ -348,7 +348,7 @@ struct Run<'nsa> {
 impl<'nsa> Run<'nsa> {
     fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
         let keyword = lexer.expect_symbols(&["run", "trace"])?;
-        let state = Expr::parse(lexer)?;
+        let state = Expr::parse(lexer)?.force_evals()?;
         let (open_curly_of_tape, tape) = Self::parse_tape(lexer)?;
         let trace = keyword.name == "trace";
         Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
