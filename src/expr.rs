@@ -10,12 +10,12 @@ pub enum Atom<'nsa> {
     Symbol(Symbol<'nsa>),
     Integer {
         loc: Loc<'nsa>,
-        value: i32,
+        value: i64,
     },
 }
 
 impl<'nsa> Atom<'nsa> {
-    pub fn expect_integer(&self) -> Result<i32> {
+    pub fn expect_integer(&self) -> Result<i64> {
         match self {
             &Self::Integer{value, ..} => Ok(value),
             Self::Symbol(symbol) => {
@@ -36,7 +36,7 @@ impl<'nsa> Atom<'nsa> {
     }
 
     pub fn from_symbol(symbol: Symbol<'nsa>) -> Result<Self> {
-        match symbol.name.parse::<i32>() {
+        match symbol.name.parse::<i64>() {
             Ok(value) => Ok(Atom::Integer{loc: symbol.loc, value}),
             Err(err) => {
                 match err.kind() {
