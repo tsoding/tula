@@ -94,8 +94,7 @@ pub enum Expr<'nsa> {
     },
     Tuple {
         loc: Loc<'nsa>,
-        // TODO: Expr::Tuple::items should be called Expr::Tuple::elements
-        items: Vec<Expr<'nsa>>
+        elements: Vec<Expr<'nsa>>
     },
 }
 
@@ -114,9 +113,9 @@ impl<'nsa> PartialEq for Expr<'nsa> {
                     Self::Atom(_) | Self::Tuple{..} => false,
                 }
             }
-            Self::Tuple{items, ..} => {
+            Self::Tuple{elements, ..} => {
                 match other {
-                    Self::Tuple{items: other_items, ..} => items == other_items,
+                    Self::Tuple{elements: other_elements, ..} => elements == other_elements,
                     Self::Atom(_) | Self::Eval{..} => false,
                 }
             }
@@ -130,7 +129,7 @@ impl<'nsa> Hash for Expr<'nsa> {
     fn hash<H>(&self, h: &mut H) where H: Hasher {
         match self {
             Self::Atom(atom) => atom.hash(h),
-            Self::Tuple{items, ..} => items.hash(h),
+            Self::Tuple{elements, ..} => elements.hash(h),
             Self::Eval{lhs, rhs, ..} => {
                 lhs.hash(h);
                 rhs.hash(h);
@@ -153,13 +152,13 @@ impl<'nsa> fmt::Display for Expr<'nsa> {
         match self {
             Self::Atom(atom) => write!(f, "{atom}"),
             Self::Eval{lhs, rhs, ..} => write!(f, "[{lhs} + {rhs}]"),
-            Self::Tuple{items, ..} => {
+            Self::Tuple{elements, ..} => {
                 write!(f, "(")?;
-                for (i, item) in items.iter().enumerate() {
+                for (i, element) in elements.iter().enumerate() {
                     if i == 0 {
-                        write!(f, "{item}")?
+                        write!(f, "{element}")?
                     } else {
-                        write!(f, " {item}")?
+                        write!(f, " {element}")?
                     }
                 }
                 write!(f, ")")
@@ -179,13 +178,13 @@ impl<'nsa, 'cia> fmt::Display for NormExpr<'nsa, 'cia> {
             // () => __
             // (1 2 3 4) => _1_2_3_4_
             // (1 (2 3) 4) _1__2_3__4_
-            Expr::Tuple{items, ..} => {
+            Expr::Tuple{elements, ..} => {
                 write!(f, "_")?;
-                for (i, item) in items.iter().enumerate() {
+                for (i, element) in elements.iter().enumerate() {
                     if i > 0 {
                         write!(f, "_")?;
                     }
-                    write!(f, "{}", NormExpr(item))?;
+                    write!(f, "{}", NormExpr(element))?;
                 }
                 write!(f, "_")
             }
@@ -231,12 +230,12 @@ impl<'nsa> Expr<'nsa> {
     pub fn force_evals(self) -> Result<Expr<'nsa>> {
         match self {
             Self::Atom(_) => Ok(self),
-            Self::Tuple{loc, items} => {
-                let mut new_items = vec![];
-                for item in items {
-                    new_items.push(item.force_evals()?)
+            Self::Tuple{loc, elements} => {
+                let mut new_elements = vec![];
+                for element in elements {
+                    new_elements.push(element.force_evals()?)
                 }
-                Ok(Self::Tuple{loc, items: new_items})
+                Ok(Self::Tuple{loc, elements: new_elements})
             }
             Self::Eval{loc, lhs, op, rhs} => {
                 let lhs = lhs.force_evals()?.expect_atom()?.clone();
@@ -363,8 +362,8 @@ impl<'nsa> Expr<'nsa> {
             Self::Eval{lhs, rhs, ..} => {
                 lhs.uses_var(var).or_else(|| rhs.uses_var(var))
             }
-            Self::Tuple{items, ..} => {
-                items.iter().find_map(|item| item.uses_var(var))
+            Self::Tuple{elements, ..} => {
+                elements.iter().find_map(|element| element.uses_var(var))
             }
         }
     }
@@ -385,9 +384,9 @@ impl<'nsa> Expr<'nsa> {
                 let rhs = Box::new(rhs.substitute_bindings(bindings));
                 Self::Eval{loc: *loc, lhs, op, rhs}
             }
-            Self::Tuple{loc, items} => {
-                let items = items.iter().map(|item| item.substitute_bindings(bindings)).collect();
-                Self::Tuple{loc: *loc, items}
+            Self::Tuple{loc, elements} => {
+                let elements = elements.iter().map(|element| element.substitute_bindings(bindings)).collect();
+                Self::Tuple{loc: *loc, elements}
             }
         }
     }
@@ -405,17 +404,17 @@ impl<'nsa> Expr<'nsa> {
                 })
             }
             "(" => {
-                let mut items = vec![];
+                let mut elements = vec![];
                 while let Some(symbol2) = lexer.peek_symbol() {
                     if symbol2.name == ")" {
                         break;
                     }
-                    items.push(Expr::parse(lexer)?);
+                    elements.push(Expr::parse(lexer)?);
                 }
                 let _ = lexer.expect_symbols(&[")"])?;
                 Ok(Self::Tuple {
                     loc: symbol.loc,
-                    items,
+                    elements,
                 })
             }
             _ => Ok(Expr::Atom(Atom::from_symbol(symbol)?))
@@ -453,13 +452,13 @@ impl<'nsa> Expr<'nsa> {
                 }
             }
             Expr::Eval{..} => unreachable!(),
-            Expr::Tuple{items: pattern_items, ..} => {
+            Expr::Tuple{elements: pattern_elements, ..} => {
                 match value {
-                    Expr::Tuple{items: value_items, ..} => {
-                        if pattern_items.len() != value_items.len() {
+                    Expr::Tuple{elements: value_elements, ..} => {
+                        if pattern_elements.len() != value_elements.len() {
                             return false
                         }
-                        for (a, b) in pattern_items.iter().zip(value_items.iter()) {
+                        for (a, b) in pattern_elements.iter().zip(value_elements.iter()) {
                             if !a.pattern_match(b, scope, bindings) {
                                 return false;
                             }

@@ -189,7 +189,7 @@ impl<'nsa> SetExpr<'nsa> {
             Self::Enclosed{inner, ..} => inner.contains(sets, element),
             Self::Product{elements: product_elements} => {
                 match element {
-                    Expr::Tuple{items: elements, ..} => {
+                    Expr::Tuple{elements, ..} => {
                         if elements.len() != product_elements.len() {
                             return false;
                         }
@@ -230,9 +230,9 @@ impl<'nsa> SetExpr<'nsa> {
                 for element in elements.iter() {
                     product.push(element.expand(sets)?)
                 }
-                let mut items = vec![];
+                let mut elements = vec![];
                 let mut result = HashSet::new();
-                expand_product_recursively(&product, self.loc(), &mut items, &mut result);
+                expand_product_recursively(&product, self.loc(), &mut elements, &mut result);
                 Ok(result)
             }
             Self::Enclosed{inner, ..} => inner.expand(sets),
@@ -252,17 +252,17 @@ impl<'nsa> SetExpr<'nsa> {
     }
 }
 
-fn expand_product_recursively<'nsa>(product: &[HashSet<Expr<'nsa>>], item_loc: &Loc<'nsa>, items: &mut Vec<Expr<'nsa>>, result: &mut HashSet<Expr<'nsa>>) {
+fn expand_product_recursively<'nsa>(product: &[HashSet<Expr<'nsa>>], element_loc: &Loc<'nsa>, elements: &mut Vec<Expr<'nsa>>, result: &mut HashSet<Expr<'nsa>>) {
     match product {
         [head, tail @ ..] => {
             for element in head {
-                items.push(element.clone());
-                expand_product_recursively(tail, item_loc, items, result);
-                items.pop();
+                elements.push(element.clone());
+                expand_product_recursively(tail, element_loc, elements, result);
+                elements.pop();
             }
         }
         [] => {
-            let new = result.insert(Expr::Tuple{items: items.clone(), loc: item_loc.clone()});
+            let new = result.insert(Expr::Tuple{elements: elements.clone(), loc: element_loc.clone()});
             assert!(new);
         }
     }
