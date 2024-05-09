@@ -42,7 +42,6 @@
 - [x] Cartesian Products for Sets
 - [x] Custom Integer overflow/underflow Runtime Errors
   - Right now we get a standard Rust panic
-- [ ] Something visual, maybe with Raylib
 - [ ] More Magical Sets
   - [ ] Real
   - [ ] Byte
@@ -57,6 +56,7 @@
 - [ ] Explicitly denote Halt States
   - Useful for catching unreachable states at runtime
 - [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
+  - Or even numbers
 
 # Examples
 
@@ -112,3 +112,4 @@
 - [ ] Integer sets via ranges
 - [ ] Proper infix expressions inside of Evals
   - Since operators themselves also can be substituted I'm not sure how to go about it...
+- [ ] Something visual, maybe with Raylib
