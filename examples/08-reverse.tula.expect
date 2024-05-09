@@ -1,0 +1,199 @@
+./examples/08-reverse.tula:3:1: run
+Entry: % a b c a b c & _
+       ^
+Init: % a b c a b c & _
+        ^
+Init: % a b c a b c & _
+          ^
+Init: % a b c a b c & _
+            ^
+Init: % a b c a b c & _
+              ^
+Init: % a b c a b c & _
+                ^
+Init: % a b c a b c & _
+                  ^
+Init: % a b c a b c & _
+                    ^
+Pick: % a b c a b c & _
+                  ^
+(Pick c): % a b c a b & & _
+                        ^
+(Pick c): % a b c a b & & _
+                          ^
+Reset: % a b c a b & & c
+                     ^
+Pick: % a b c a b & & c
+                  ^
+Pick: % a b c a b & & c
+                ^
+(Pick b): % a b c a & & & c
+                      ^
+(Pick b): % a b c a & & & c
+                        ^
+(Pick b): % a b c a & & & c
+                          ^
+(Pick b): % a b c a & & & c _
+                            ^
+Reset: % a b c a & & & c b
+                       ^
+Reset: % a b c a & & & c b
+                     ^
+Pick: % a b c a & & & c b
+                  ^
+Pick: % a b c a & & & c b
+                ^
+Pick: % a b c a & & & c b
+              ^
+(Pick a): % a b c & & & & c b
+                    ^
+(Pick a): % a b c & & & & c b
+                      ^
+(Pick a): % a b c & & & & c b
+                        ^
+(Pick a): % a b c & & & & c b
+                          ^
+(Pick a): % a b c & & & & c b
+                            ^
+(Pick a): % a b c & & & & c b _
+                              ^
+Reset: % a b c & & & & c b a
+                         ^
+Reset: % a b c & & & & c b a
+                       ^
+Reset: % a b c & & & & c b a
+                     ^
+Pick: % a b c & & & & c b a
+                  ^
+Pick: % a b c & & & & c b a
+                ^
+Pick: % a b c & & & & c b a
+              ^
+Pick: % a b c & & & & c b a
+            ^
+(Pick c): % a b & & & & & c b a
+                  ^
+(Pick c): % a b & & & & & c b a
+                    ^
+(Pick c): % a b & & & & & c b a
+                      ^
+(Pick c): % a b & & & & & c b a
+                        ^
+(Pick c): % a b & & & & & c b a
+                          ^
+(Pick c): % a b & & & & & c b a
+                            ^
+(Pick c): % a b & & & & & c b a
+                              ^
+(Pick c): % a b & & & & & c b a _
+                                ^
+Reset: % a b & & & & & c b a c
+                           ^
+Reset: % a b & & & & & c b a c
+                         ^
+Reset: % a b & & & & & c b a c
+                       ^
+Reset: % a b & & & & & c b a c
+                     ^
+Pick: % a b & & & & & c b a c
+                  ^
+Pick: % a b & & & & & c b a c
+                ^
+Pick: % a b & & & & & c b a c
+              ^
+Pick: % a b & & & & & c b a c
+            ^
+Pick: % a b & & & & & c b a c
+          ^
+(Pick b): % a & & & & & & c b a c
+                ^
+(Pick b): % a & & & & & & c b a c
+                  ^
+(Pick b): % a & & & & & & c b a c
+                    ^
+(Pick b): % a & & & & & & c b a c
+                      ^
+(Pick b): % a & & & & & & c b a c
+                        ^
+(Pick b): % a & & & & & & c b a c
+                          ^
+(Pick b): % a & & & & & & c b a c
+                            ^
+(Pick b): % a & & & & & & c b a c
+                              ^
+(Pick b): % a & & & & & & c b a c
+                                ^
+(Pick b): % a & & & & & & c b a c _
+                                  ^
+Reset: % a & & & & & & c b a c b
+                             ^
+Reset: % a & & & & & & c b a c b
+                           ^
+Reset: % a & & & & & & c b a c b
+                         ^
+Reset: % a & & & & & & c b a c b
+                       ^
+Reset: % a & & & & & & c b a c b
+                     ^
+Pick: % a & & & & & & c b a c b
+                  ^
+Pick: % a & & & & & & c b a c b
+                ^
+Pick: % a & & & & & & c b a c b
+              ^
+Pick: % a & & & & & & c b a c b
+            ^
+Pick: % a & & & & & & c b a c b
+          ^
+Pick: % a & & & & & & c b a c b
+        ^
+(Pick a): % & & & & & & & c b a c b
+              ^
+(Pick a): % & & & & & & & c b a c b
+                ^
+(Pick a): % & & & & & & & c b a c b
+                  ^
+(Pick a): % & & & & & & & c b a c b
+                    ^
+(Pick a): % & & & & & & & c b a c b
+                      ^
+(Pick a): % & & & & & & & c b a c b
+                        ^
+(Pick a): % & & & & & & & c b a c b
+                          ^
+(Pick a): % & & & & & & & c b a c b
+                            ^
+(Pick a): % & & & & & & & c b a c b
+                              ^
+(Pick a): % & & & & & & & c b a c b
+                                ^
+(Pick a): % & & & & & & & c b a c b
+                                  ^
+(Pick a): % & & & & & & & c b a c b _
+                                    ^
+Reset: % & & & & & & & c b a c b a
+                               ^
+Reset: % & & & & & & & c b a c b a
+                             ^
+Reset: % & & & & & & & c b a c b a
+                           ^
+Reset: % & & & & & & & c b a c b a
+                         ^
+Reset: % & & & & & & & c b a c b a
+                       ^
+Reset: % & & & & & & & c b a c b a
+                     ^
+Pick: % & & & & & & & c b a c b a
+                  ^
+Pick: % & & & & & & & c b a c b a
+                ^
+Pick: % & & & & & & & c b a c b a
+              ^
+Pick: % & & & & & & & c b a c b a
+            ^
+Pick: % & & & & & & & c b a c b a
+          ^
+Pick: % & & & & & & & c b a c b a
+        ^
+Pick: % & & & & & & & c b a c b a
+      ^

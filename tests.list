@@ -1,0 +1,14 @@
+./examples/01-inc.tula
+./examples/02-parens.tula
+./examples/02-add.tula
+./examples/03-pairs.tula
+./examples/05-rule110.tula
+./examples/06-shift.tula
+./examples/07-fib.tula
+./examples/08-reverse.tula
+./examples/09-multi-parens.tula
+./examples/10-fizz-buzz.tula
+./examples/11-utm.tula
+./euler/problem-01.tula
+./euler/problem-02.tula
+./euler/problem-03.tula

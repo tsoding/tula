@@ -1,0 +1,101 @@
+./examples/11-utm.tula:1:1: run
+(UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+           ^
+(UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+             ^~~~~~~~~~~~~~~~
+(UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                              ^~~~~~~~~~~~~~~~
+(UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                               ^~~~~~~~~~~~~~~~
+(UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                                ^~~~~~~~~~~~~~~~
+(UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                                                 ^
+(UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                                                   ^~~~~~~~
+(Match Inc 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                                                     ^
+(Match Inc 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                                    ^~~~~~~~~~~~~~~~
+(Match Inc 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                   ^~~~~~~~~~~~~~~~
+(Match Inc 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                  ^~~~~~~~~~~~~~~~
+(Write 0 -> Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                      ^~~~~~~~~~~~~~~~
+(Write 0 -> Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                                       ^~~~~~~~~~~~~~~~
+(Write 0 -> Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                                                        ^
+(Write 0 -> Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
+                                                                                          ^~~~~~~~
+(Next Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 1 0 1 0
+                                                                                      ^
+(Match Inc 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                                                                       ^
+(Match Inc 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                                                                     ^
+(Match Inc 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                                                    ^~~~~~~~~~~~~~~~
+(Match Inc 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                                   ^~~~~~~~~~~~~~~~
+(Match Inc 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                  ^~~~~~~~~~~~~~~~
+(Write 0 -> Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                                      ^~~~~~~~~~~~~~~~
+(Write 0 -> Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                                                       ^~~~~~~~~~~~~~~~
+(Write 0 -> Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                                                                        ^
+(Write 0 -> Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                                                                          ^
+(Write 0 -> Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 (head 1) 0 1 0
+                                                                                            ^~~~~~~~
+(Next Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 0 1 0
+                                                                                        ^
+(Match Inc 0): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                                                         ^
+(Match Inc 0): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                                                       ^
+(Match Inc 0): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                                                     ^
+(Match Inc 0): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                                    ^~~~~~~~~~~~~~~~
+(Match Inc 0): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                   ^~~~~~~~~~~~~~~~
+(Match Inc 0): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                  ^~~~~~~~~~~~~~~~
+(Match Inc 0): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                 ^~~~~~~~~~~~~~~~
+(Write 1 . Halt): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                     ^~~~~~~~~~~~~~~~
+(Write 1 . Halt): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                      ^~~~~~~~~~~~~~~~
+(Write 1 . Halt): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                                       ^~~~~~~~~~~~~~~~
+(Write 1 . Halt): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                                                        ^
+(Write 1 . Halt): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                                                          ^
+(Write 1 . Halt): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                                                            ^
+(Write 1 . Halt): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 0) 1 0
+                                                                                              ^~~~~~~~
+(Next Halt): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 1 1 0
+                                                                                         ^
+(Match Halt 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 1) 1 0
+                                                                                          ^
+(Match Halt 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 1) 1 0
+                                                                                        ^
+(Match Halt 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 1) 1 0
+                                                                                      ^
+(Match Halt 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 1) 1 0
+                                                                     ^~~~~~~~~~~~~~~~
+(Match Halt 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 1) 1 0
+                                                    ^~~~~~~~~~~~~~~~
+(Match Halt 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 1) 1 0
+                                   ^~~~~~~~~~~~~~~~
+(Match Halt 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 1) 1 0
+                  ^~~~~~~~~~~~~~~~
+(Match Halt 1): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & 0 0 (head 1) 1 0
+                ^
