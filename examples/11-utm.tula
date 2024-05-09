@@ -1,7 +1,7 @@
 trace (UTM Inc) {
     %
-        (Inc 0 1 -> Halt) (Inc 1 0 -> Inc)
-        (Dec 1 0 -> Halt) (Dec 0 1 -> Dec)
+        (Inc 0 1 . Halt) (Inc 1 0 -> Inc)
+        (Dec 1 0 . Halt) (Dec 0 1 -> Dec)
     &
     (head 1) 1 0 1 0
 }
