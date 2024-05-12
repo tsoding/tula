@@ -68,13 +68,13 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
 impl<'nsa> SetExpr<'nsa> {
     fn loc(&self) -> &Loc<'nsa> {
         match self {
-            Self::Named(Symbol{loc, ..}) => &loc,
-            Self::Enclosed{loc, ..} => &loc,
-            Self::Anonymous{loc, ..} => &loc,
-            Self::Integer(Symbol{loc, ..}) => &loc,
+            Self::Named(Symbol{loc, ..}) => loc,
+            Self::Enclosed{loc, ..} => loc,
+            Self::Anonymous{loc, ..} => loc,
+            Self::Integer(Symbol{loc, ..}) => loc,
             Self::Union {lhs, ..} => lhs.loc(),
             Self::Diff {lhs, ..} => lhs.loc(),
-            Self::Product {elements} => elements.get(0).expect("Parser must not produce products that have 0 elements").loc(),
+            Self::Product {elements} => elements.first().expect("Parser must not produce products that have 0 elements").loc(),
         }
     }
 
@@ -106,7 +106,7 @@ impl<'nsa> SetExpr<'nsa> {
             "{" => {
                 let elements = Self::parse_anonymous(lexer)?;
                 Self::Anonymous {
-                    loc: symbol.loc.clone(),
+                    loc: symbol.loc,
                     elements
                 }
             },
@@ -148,13 +148,11 @@ impl<'nsa> SetExpr<'nsa> {
                 break;
             }
         }
-        if elements.len() == 1 {
+        match elements.len() {
+            0 => unreachable!("elements may never be empty"),
             // TODO: think about a better solution that does not involve this kind of hackery
-            Ok(elements.pop().unwrap())
-        } else if elements.len() > 1 {
-            Ok(Self::Product{elements})
-        } else {
-            unreachable!("elements may never be empty")
+            1 => Ok(elements.pop().unwrap()),
+            _ => Ok(Self::Product{elements})
         }
     }
 
@@ -208,13 +206,7 @@ impl<'nsa> SetExpr<'nsa> {
             Self::Union{lhs, rhs} => lhs.contains(sets, element) || rhs.contains(sets, element),
             Self::Diff{lhs, rhs} => lhs.contains(sets, element) && !rhs.contains(sets, element),
             Self::Anonymous{elements, ..} => elements.contains(element),
-            Self::Integer(_)=> {
-                if let Expr::Atom(Atom::Integer{..}) = element {
-                    true
-                } else {
-                    false
-                }
-            }
+            Self::Integer(_) => matches!(element, Expr::Atom(Atom::Integer{..})),
             Self::Named(name) => {
                 sets.get(name)
                     .expect("The existence of all Named Set Expressions must be checked upfront")
@@ -262,7 +254,7 @@ fn expand_product_recursively<'nsa>(product: &[HashSet<Expr<'nsa>>], element_loc
             }
         }
         [] => {
-            let new = result.insert(Expr::Tuple{elements: elements.clone(), loc: element_loc.clone()});
+            let new = result.insert(Expr::Tuple{elements: elements.clone(), loc: *element_loc});
             assert!(new);
         }
     }

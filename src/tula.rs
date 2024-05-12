@@ -204,7 +204,7 @@ impl<'nsa> Statement<'nsa> {
                 let mut result = Statement::parse(lexer, sets)?;
                 for var in vars.iter().rev() {
                     result = Statement::For{
-                        var: var.clone(),
+                        var: *var,
                         set: set.clone(),
                         body: Box::new(result)
                     }
@@ -215,7 +215,7 @@ impl<'nsa> Statement<'nsa> {
         }
     }
 
-    fn compile_to_cases(&self, sets: &Sets<'nsa>, scope: &mut Scope<'nsa>, scoped_cases: &mut Vec<ScopedCase<'nsa>>) -> Result<()> {
+    fn compile_to_cases(&self, scope: &mut Scope<'nsa>, scoped_cases: &mut Vec<ScopedCase<'nsa>>) -> Result<()> {
         match self {
             Statement::Case(case) => {
                 let mut unused_vars = vec![];
@@ -239,7 +239,7 @@ impl<'nsa> Statement<'nsa> {
             }
             Statement::Block{statements} => {
                 for statement in statements {
-                    statement.compile_to_cases(sets, scope, scoped_cases)?
+                    statement.compile_to_cases(scope, scoped_cases)?
                 }
                 Ok(())
             }
@@ -250,7 +250,7 @@ impl<'nsa> Statement<'nsa> {
                     return Err(())
                 }
                 scope.insert(*var, set.clone());
-                let result = body.compile_to_cases(sets, scope, scoped_cases);
+                let result = body.compile_to_cases(scope, scoped_cases);
                 scope.remove(var);
                 result
             }
@@ -304,7 +304,7 @@ impl<'nsa> Machine<'nsa> {
 
     fn print(&self) {
         for expr in &self.tape {
-            let _ = print!("{expr} ");
+            print!("{expr} ");
         }
         println!()
     }
@@ -380,7 +380,7 @@ impl<'nsa> Run<'nsa> {
                 print!(" ");
             }
             if normalize {
-                print!("{expr}", expr = NormExpr(&expr));
+                print!("{expr}", expr = NormExpr(expr));
             } else {
                 print!("{expr}");
             }
@@ -389,11 +389,11 @@ impl<'nsa> Run<'nsa> {
     }
 }
 
-fn compile_cases_from_statements<'nsa>(set: &Sets<'nsa>, statements: &[Statement<'nsa>]) -> Result<Vec<ScopedCase<'nsa>>> {
+fn compile_cases_from_statements<'nsa>(statements: &[Statement<'nsa>]) -> Result<Vec<ScopedCase<'nsa>>> {
     let mut scoped_case = vec![];
     for statement in statements {
         let mut scope = Scope::new();
-        statement.compile_to_cases(set, &mut scope, &mut scoped_case)?;
+        statement.compile_to_cases(&mut scope, &mut scoped_case)?;
     }
     Ok(scoped_case)
 }
@@ -421,12 +421,9 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
                 };
                 // TODO: improve extendability of this piece of code.
                 //   If I add more magical sets, it's easy to forget to update this match.
-                match name.name {
-                    "Integer" => {
-                        eprintln!("{loc}: ERROR: redefinition of a magical set {name}", loc = name.loc);
-                        return Err(());
-                    }
-                    _ => {}
+                if name.name == "Integer" {
+                    eprintln!("{loc}: ERROR: redefinition of a magical set {name}", loc = name.loc);
+                    return Err(());
                 }
                 if let Some((orig_name, _)) = sets.get_key_value(&name) {
                     eprintln!("{loc}: ERROR: redefinition of set {name}", loc = name.loc);
@@ -486,7 +483,7 @@ const COMMANDS: &[Command] = &[
                 eprintln!("ERROR: could not read file {tula_path}: {err}");
             })?;
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
-            let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
+            let scoped_cases = compile_cases_from_statements(&statements)?;
 
             for run in &runs {
                 println!("{loc}: run", loc = run.keyword.loc);
@@ -522,11 +519,11 @@ const COMMANDS: &[Command] = &[
         name: "expand",
         description: "Expands all the Universal Quantifiers hardcoding all of the cases",
         signature: "[--no-expr] <input.tula>",
-        run: |command, program_name: &str, mut args: env::Args| {
+        run: |command, program_name: &str, args: env::Args| {
             let mut source_path = None;
             let mut no_expr = false;
 
-            while let Some(arg) = args.next() {
+            for arg in args {
                 match arg.as_str() {
                     "--no-expr" => no_expr = true,
                     _ => {
@@ -551,7 +548,7 @@ const COMMANDS: &[Command] = &[
             })?;
 
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&source, &source_path))?;
-            let scoped_cases = compile_cases_from_statements(&sets, &statements)?;
+            let scoped_cases = compile_cases_from_statements(&statements)?;
 
             for case in &scoped_cases {
                 case.expand(&sets, no_expr)?;
@@ -623,7 +620,7 @@ fn start() -> Result<()> {
         (command.run)(command, &program_name, args)
     } else {
         eprintln!("ERROR: no command with the name {command_name}");
-        return Err(())
+        Err(())
     }
 }
 

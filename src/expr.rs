@@ -193,7 +193,7 @@ impl<'nsa, 'cia> fmt::Display for NormExpr<'nsa, 'cia> {
     }
 }
 
-fn expect_bool<'nsa>(symbol: &Symbol<'nsa>) -> Result<bool> {
+fn expect_bool(symbol: &Symbol) -> Result<bool> {
     match symbol.name {
         "true" => Ok(true),
         "false" => Ok(false),
@@ -242,7 +242,7 @@ impl<'nsa> Expr<'nsa> {
                 match lhs {
                     Atom::Integer{value: lhs, ..} => {
                         let rhs = rhs.force_evals()?.expect_atom()?.expect_integer()?;
-                        let op  = op.force_evals()?.expect_atom()?.expect_symbol()?.clone();
+                        let op  = *op.force_evals()?.expect_atom()?.expect_symbol()?;
                         match op.name {
                             "+" => Ok(Expr::Atom(Atom::Integer {
                                 loc,
@@ -322,7 +322,7 @@ impl<'nsa> Expr<'nsa> {
                     Atom::Symbol(symbol) => {
                         let lhs = expect_bool(&symbol)?;
                         let rhs = expect_bool(rhs.force_evals()?.expect_atom()?.expect_symbol()?)?;
-                        let op  = op.force_evals()?.expect_atom()?.expect_symbol()?.clone();
+                        let op  = *op.force_evals()?.expect_atom()?.expect_symbol()?;
                         match op.name {
                             "||" => Ok(Expr::Atom(Atom::Symbol(Symbol {
                                 loc,
@@ -424,7 +424,7 @@ impl<'nsa> Expr<'nsa> {
     pub fn loc(&self) -> &Loc<'nsa> {
         match self {
             Self::Atom(Atom::Symbol(symbol)) => &symbol.loc,
-            Self::Tuple{loc, ..} | Self::Eval{loc, ..} | Self::Atom(Atom::Integer{loc, ..}) => &loc,
+            Self::Tuple{loc, ..} | Self::Eval{loc, ..} | Self::Atom(Atom::Integer{loc, ..}) => loc,
         }
     }
 

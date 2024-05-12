@@ -151,11 +151,11 @@ impl<'nsa> Lexer<'nsa> {
             }
         }
 
-        if self.source.starts_with("'") {
+        if self.source.starts_with('\'') {
             let mut char_indices = self.source.char_indices();
             self.advance_loc(char_indices.next().unwrap().1);
 
-            while let Some((_, x)) = char_indices.next() {
+            for (_, x) in char_indices.by_ref() {
                 // TODO: implement escaping inside of symbol literals
                 self.advance_loc(x);
                 if x == '\'' {
