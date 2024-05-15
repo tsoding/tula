@@ -22,6 +22,7 @@ pub enum SetExpr<'nsa> {
     },
     Integer(Symbol<'nsa>),
     Real(Symbol<'nsa>),
+    String(Symbol<'nsa>),
     Union {
         lhs: Box<SetExpr<'nsa>>,
         rhs: Box<SetExpr<'nsa>>,
@@ -41,6 +42,7 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
             Self::Named(name) => write!(f, "{name}"),
             Self::Integer(_) => write!(f, "Integer"),
             Self::Real(_) => write!(f, "Real"),
+            Self::String(_) => write!(f, "String"),
             Self::Enclosed{inner, ..} => write!(f, "({inner})"),
             Self::Product {elements, ..} => {
                 for (i, element) in elements.iter().enumerate() {
@@ -75,6 +77,7 @@ impl<'nsa> SetExpr<'nsa> {
             Self::Anonymous{loc, ..} => loc,
             Self::Integer(Symbol{loc, ..}) => loc,
             Self::Real(Symbol{loc, ..}) => loc,
+            Self::String(Symbol{loc, ..}) => loc,
             Self::Union {lhs, ..} => lhs.loc(),
             Self::Diff {lhs, ..} => lhs.loc(),
             Self::Product {elements} => elements.first().expect("Parser must not produce products that have 0 elements").loc(),
@@ -214,6 +217,7 @@ impl<'nsa> SetExpr<'nsa> {
             Self::Anonymous{elements, ..} => elements.contains(element),
             Self::Integer(_) => matches!(element, Expr::Atom(Atom::Integer{..})),
             Self::Real(_) => matches!(element, Expr::Atom(Atom::Real{..})),
+            Self::String(_) => matches!(element, Expr::Atom(Atom::String{..})),
             Self::Named(name) => {
                 sets.get(name)
                     .expect("The existence of all Named Set Expressions must be checked upfront")
@@ -244,6 +248,10 @@ impl<'nsa> SetExpr<'nsa> {
             }
             Self::Real(Symbol{loc, ..})=> {
                 eprintln!("{loc}: Impossible to expand set Real: it's too big");
+                Err(())
+            }
+            Self::String(Symbol{loc, ..})=> {
+                eprintln!("{loc}: Impossible to expand set String: it's too big");
                 Err(())
             }
             Self::Named(name) => {
