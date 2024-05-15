@@ -82,6 +82,15 @@ impl<'nsa> Atom<'nsa> {
     }
 
     pub fn from_symbol(symbol: Symbol<'nsa>) -> Result<Self> {
+        if symbol.name.starts_with("'") {
+            assert!(symbol.name.len() >= 2, "Lexer didn't tokenize string literal correctly");
+            assert!(symbol.name.ends_with("'"), "Lexer didn't tokenize string literal correctly");
+            return Ok(Atom::String {
+                value: symbol.name[1..symbol.name.len()-1].to_string(),
+                loc: symbol.loc
+            });
+        }
+
         match symbol.name.parse::<i64>() {
             Ok(value) => return Ok(Atom::Integer{loc: symbol.loc, value}),
             Err(err) => {

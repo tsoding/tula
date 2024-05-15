@@ -13,3 +13,4 @@
 ./euler/problem-02.tula
 ./euler/problem-03.tula
 ./tests/real.tula
+./tests/string.tula

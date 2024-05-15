@@ -133,6 +133,7 @@ impl<'nsa> SetExpr<'nsa> {
                     Atom::Symbol(symbol) => match symbol.name {
                         "Integer" => Self::Integer(symbol),
                         "Real" => Self::Real(symbol),
+                        "String" => Self::String(symbol),
                         _ => {
                             if !sets.contains_key(&symbol) {
                                 eprintln!("{loc}: ERROR: set {symbol} does not exist", loc = symbol.loc);
