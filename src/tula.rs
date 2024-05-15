@@ -192,6 +192,10 @@ impl<'nsa> Statement<'nsa> {
                             eprintln!("{loc}: ERROR: Integers may not be used as variable names");
                             return Err(())
                         }
+                        Expr::Atom(Atom::Real{loc, ..}) => {
+                            eprintln!("{loc}: ERROR: Reals may not be used as variable names");
+                            return Err(())
+                        }
                         Expr::Eval{loc, ..} |
                         Expr::Tuple{loc, ..} => {
                             eprintln!("{loc}: ERROR: Pattern Matching in Universal Quantifiers is not supported");
@@ -416,6 +420,10 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
                     Atom::Symbol(name) => name,
                     Atom::Integer{loc, ..} => {
                         eprintln!("{loc}: ERROR: set name may not be an integer");
+                        return Err(())
+                    }
+                    Atom::Real{loc, ..} => {
+                        eprintln!("{loc}: ERROR: set name may not be a real number");
                         return Err(())
                     }
                 };

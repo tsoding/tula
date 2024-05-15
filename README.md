@@ -363,6 +363,9 @@ Until_Five: 1 2 3 4 5 6 7 8
 
 This specifically makes the program halt at `5` because it does not have a case for it.
 
+Additional Magical Sets include:
+- Real - Set of Real Numbers (corresponds to f32 in Rust)
+
 ## Eval Expressions (EEs)
 
 Once you've got two Integers the most logical thing to do would be to sum them up:

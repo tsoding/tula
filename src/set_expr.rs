@@ -21,6 +21,7 @@ pub enum SetExpr<'nsa> {
         elements: HashSet<Expr<'nsa>>
     },
     Integer(Symbol<'nsa>),
+    Real(Symbol<'nsa>),
     Union {
         lhs: Box<SetExpr<'nsa>>,
         rhs: Box<SetExpr<'nsa>>,
@@ -39,6 +40,7 @@ impl<'nsa> fmt::Display for SetExpr<'nsa> {
         match self {
             Self::Named(name) => write!(f, "{name}"),
             Self::Integer(_) => write!(f, "Integer"),
+            Self::Real(_) => write!(f, "Real"),
             Self::Enclosed{inner, ..} => write!(f, "({inner})"),
             Self::Product {elements, ..} => {
                 for (i, element) in elements.iter().enumerate() {
@@ -72,6 +74,7 @@ impl<'nsa> SetExpr<'nsa> {
             Self::Enclosed{loc, ..} => loc,
             Self::Anonymous{loc, ..} => loc,
             Self::Integer(Symbol{loc, ..}) => loc,
+            Self::Real(Symbol{loc, ..}) => loc,
             Self::Union {lhs, ..} => lhs.loc(),
             Self::Diff {lhs, ..} => lhs.loc(),
             Self::Product {elements} => elements.first().expect("Parser must not produce products that have 0 elements").loc(),
@@ -123,14 +126,20 @@ impl<'nsa> SetExpr<'nsa> {
                         eprintln!("{loc}: ERROR: integer is not a set expression");
                         return Err(())
                     }
-                    Atom::Symbol(symbol) => if symbol.name == "Integer" {
-                        Self::Integer(symbol)
-                    } else {
-                        if !sets.contains_key(&symbol) {
-                            eprintln!("{loc}: ERROR: set {symbol} does not exist", loc = symbol.loc);
-                            return Err(());
+                    Atom::Real{loc, ..} => {
+                        eprintln!("{loc}: ERROR: real is not a set expression");
+                        return Err(())
+                    }
+                    Atom::Symbol(symbol) => match symbol.name {
+                        "Integer" => Self::Integer(symbol),
+                        "Real" => Self::Real(symbol),
+                        _ => {
+                            if !sets.contains_key(&symbol) {
+                                eprintln!("{loc}: ERROR: set {symbol} does not exist", loc = symbol.loc);
+                                return Err(());
+                            }
+                            Self::Named(symbol)
                         }
-                        Self::Named(symbol)
                     }
                 }
             }
@@ -207,6 +216,7 @@ impl<'nsa> SetExpr<'nsa> {
             Self::Diff{lhs, rhs} => lhs.contains(sets, element) && !rhs.contains(sets, element),
             Self::Anonymous{elements, ..} => elements.contains(element),
             Self::Integer(_) => matches!(element, Expr::Atom(Atom::Integer{..})),
+            Self::Real(_) => matches!(element, Expr::Atom(Atom::Real{..})),
             Self::Named(name) => {
                 sets.get(name)
                     .expect("The existence of all Named Set Expressions must be checked upfront")
@@ -233,6 +243,10 @@ impl<'nsa> SetExpr<'nsa> {
             Self::Anonymous{elements, ..} => Ok(elements.clone()),
             Self::Integer(Symbol{loc, ..})=> {
                 eprintln!("{loc}: Impossible to expand set Integer: it's too big");
+                Err(())
+            }
+            Self::Real(Symbol{loc, ..})=> {
+                eprintln!("{loc}: Impossible to expand set Real: it's too big");
                 Err(())
             }
             Self::Named(name) => {

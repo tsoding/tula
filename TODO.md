@@ -43,7 +43,7 @@
 - [x] Custom Integer overflow/underflow Runtime Errors
   - Right now we get a standard Rust panic
 - [ ] More Magical Sets
-  - [ ] Real
+  - [x] Real
   - [ ] Char
   - [ ] String
   - [ ] Boolean

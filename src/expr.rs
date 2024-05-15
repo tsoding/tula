@@ -12,12 +12,34 @@ pub enum Atom<'nsa> {
         loc: Loc<'nsa>,
         value: i64,
     },
+    Real {
+        loc: Loc<'nsa>,
+        value: f32,
+    },
 }
 
 impl<'nsa> Atom<'nsa> {
+    pub fn expect_real(&self) -> Result<f32> {
+        match self {
+            &Self::Real{value, ..} => Ok(value),
+            &Self::Integer{value, loc} => {
+                eprintln!("{loc}: ERROR: expected real but got integer {value}");
+                Err(())
+            }
+            Self::Symbol(symbol) => {
+                eprintln!("{loc}: ERROR: expected real but got symbol `{symbol}`", loc = symbol.loc);
+                Err(())
+            }
+        }
+    }
+
     pub fn expect_integer(&self) -> Result<i64> {
         match self {
             &Self::Integer{value, ..} => Ok(value),
+            &Self::Real{value, loc} => {
+                eprintln!("{loc}: ERROR: expected integer but got real {value}");
+                Err(())
+            }
             Self::Symbol(symbol) => {
                 eprintln!("{loc}: ERROR: expected integer but got symbol `{symbol}`", loc = symbol.loc);
                 Err(())
@@ -31,27 +53,36 @@ impl<'nsa> Atom<'nsa> {
                 eprintln!("{loc}: ERROR: expected symbol but got integer");
                 Err(())
             }
+            &Self::Real{value, loc} => {
+                eprintln!("{loc}: ERROR: expected symbol but got real {value}");
+                Err(())
+            }
             Self::Symbol(symbol) => Ok(symbol),
         }
     }
 
     pub fn from_symbol(symbol: Symbol<'nsa>) -> Result<Self> {
         match symbol.name.parse::<i64>() {
-            Ok(value) => Ok(Atom::Integer{loc: symbol.loc, value}),
+            Ok(value) => return Ok(Atom::Integer{loc: symbol.loc, value}),
             Err(err) => {
                 match err.kind() {
                     IntErrorKind::PosOverflow => {
                         eprintln!("{loc}: ERROR: could not parse Integer because positive overflow", loc = symbol.loc);
-                        Err(())
+                        return Err(())
                     }
                     IntErrorKind::NegOverflow => {
                         eprintln!("{loc}: ERROR: could not parse Integer because negative overflow", loc = symbol.loc);
-                        Err(())
+                        return Err(())
                     }
-                    _ => Ok(Atom::Symbol(symbol))
+                    _ => {}
                 }
             }
         }
+        match symbol.name.parse::<f32>() {
+            Ok(value) => return Ok(Atom::Real{loc: symbol.loc, value}),
+            Err(_) => {}
+        }
+        Ok(Atom::Symbol(symbol))
     }
 }
 
@@ -60,6 +91,7 @@ impl<'nsa> Hash for Atom<'nsa> {
         match self {
             Self::Symbol(symbol) => symbol.hash(h),
             Self::Integer{value, ..} => value.hash(h),
+            Self::Real{value, ..} => value.to_le_bytes().hash(h),
         }
     }
 }
@@ -70,13 +102,19 @@ impl<'nsa> PartialEq for Atom<'nsa> {
             Self::Symbol(symbol) => {
                 match other {
                     Self::Symbol(other_symbol) => symbol == other_symbol,
-                    Self::Integer{..} => false,
+                    Self::Integer{..} | Self::Real{..} => false,
+                }
+            }
+            Self::Real{value, ..} => {
+                match other {
+                    Self::Real{value: other_value, ..} => value == other_value,
+                    Self::Symbol(_) | Self::Integer{..} => false,
                 }
             }
             Self::Integer{value, ..} => {
                 match other {
                     Self::Integer{value: other_value, ..} => value == other_value,
-                    Self::Symbol(_) => false,
+                    Self::Symbol(_) | Self::Real{..} => false,
                 }
             }
         }
@@ -143,6 +181,7 @@ impl<'nsa> fmt::Display for Atom<'nsa> {
         match self {
             Atom::Symbol(Symbol{name, ..}) => write!(f, "{name}"),
             Atom::Integer{value, ..} => write!(f, "{value}"),
+            Atom::Real{value, ..} => write!(f, "{value}"),
         }
     }
 }
@@ -346,6 +385,60 @@ impl<'nsa> Expr<'nsa> {
                             }
                         }
                     }
+                    Atom::Real{value: lhs, ..} => {
+                        let rhs = rhs.force_evals()?.expect_atom()?.expect_real()?;
+                        let op  = *op.force_evals()?.expect_atom()?.expect_symbol()?;
+                        match op.name {
+                            "+" => Ok(Expr::Atom(Atom::Real {
+                                loc,
+                                value: lhs + rhs,
+                            })),
+                            "-" => Ok(Expr::Atom(Atom::Real {
+                                loc,
+                                value: lhs - rhs,
+                            })),
+                            "*" => Ok(Expr::Atom(Atom::Real {
+                                loc,
+                                value: lhs * rhs,
+                            })),
+                            "/" => Ok(Expr::Atom(Atom::Real {
+                                loc,
+                                value: lhs / rhs,
+                            })),
+                            "%" => Ok(Expr::Atom(Atom::Real {
+                                loc,
+                                value: lhs % rhs,
+                            })),
+                            ">" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc,
+                                name: bool_to_str(lhs > rhs),
+                            }))),
+                            ">=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc,
+                                name: bool_to_str(lhs >= rhs),
+                            }))),
+                            "<" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc,
+                                name: bool_to_str(lhs < rhs),
+                            }))),
+                            "<=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc,
+                                name: bool_to_str(lhs <= rhs),
+                            }))),
+                            "==" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc,
+                                name: bool_to_str(lhs == rhs),
+                            }))),
+                            "!=" => Ok(Expr::Atom(Atom::Symbol(Symbol {
+                                loc,
+                                name: bool_to_str(lhs != rhs),
+                            }))),
+                            _ => {
+                                eprintln!("{loc}: ERROR: Unexpected Integer operation {op}", loc = op.loc);
+                                Err(())
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -358,7 +451,7 @@ impl<'nsa> Expr<'nsa> {
             } else {
                 None
             },
-            Self::Atom(Atom::Integer{..}) => None,
+            Self::Atom(Atom::Integer{..}) | Self::Atom(Atom::Real{..}) => None,
             Self::Eval{lhs, rhs, ..} => {
                 lhs.uses_var(var).or_else(|| rhs.uses_var(var))
             }
@@ -377,7 +470,7 @@ impl<'nsa> Expr<'nsa> {
                     self.clone()
                 }
             }
-            Self::Atom(Atom::Integer{..}) => self.clone(),
+            Self::Atom(Atom::Integer{..}) | Self::Atom(Atom::Real{..}) => self.clone(),
             Self::Eval{loc, lhs, op, rhs} => {
                 let lhs = Box::new(lhs.substitute_bindings(bindings));
                 let op  = Box::new(op.substitute_bindings(bindings));
@@ -424,7 +517,10 @@ impl<'nsa> Expr<'nsa> {
     pub fn loc(&self) -> &Loc<'nsa> {
         match self {
             Self::Atom(Atom::Symbol(symbol)) => &symbol.loc,
-            Self::Tuple{loc, ..} | Self::Eval{loc, ..} | Self::Atom(Atom::Integer{loc, ..}) => loc,
+            Self::Tuple{loc, ..} |
+            Self::Eval{loc, ..} |
+            Self::Atom(Atom::Integer{loc, ..}) |
+            Self::Atom(Atom::Real{loc, ..})=> loc,
         }
     }
 
@@ -441,14 +537,23 @@ impl<'nsa> Expr<'nsa> {
                 } else {
                     match value {
                         Expr::Atom(Atom::Symbol(value_symbol)) => pattern_symbol == value_symbol,
-                        Expr::Tuple{..} | Expr::Eval{..} | Expr::Atom(Atom::Integer{..}) => false,
+                        Expr::Tuple{..} | Expr::Eval{..} | Expr::Atom(Atom::Integer{..}) | Expr::Atom(Atom::Real{..}) => false,
                     }
                 }
             }
             Expr::Atom(Atom::Integer{value: pattern_value, ..}) => {
                 match value {
                     Expr::Atom(Atom::Integer{value: value_value, ..}) => pattern_value == value_value,
-                    Expr::Atom(Atom::Symbol(..)) | Expr::Tuple{..} | Expr::Eval{..} => false,
+                    Expr::Atom(Atom::Symbol(..)) | Expr::Tuple{..} | Expr::Eval{..} | Expr::Atom(Atom::Real{..}) => false,
+                }
+            }
+            Expr::Atom(Atom::Real{value: pattern_value, ..}) => {
+                match value {
+                    Expr::Atom(Atom::Real{value: value_value, ..}) => pattern_value == value_value,
+                    Expr::Atom(Atom::Integer{..}) |
+                    Expr::Atom(Atom::Symbol(..)) |
+                    Expr::Tuple{..} |
+                    Expr::Eval{..} => false,
                 }
             }
             Expr::Eval{..} => unreachable!(),
@@ -465,7 +570,7 @@ impl<'nsa> Expr<'nsa> {
                         }
                         true
                     }
-                    Expr::Atom(Atom::Symbol(_)) | Expr::Atom(Atom::Integer{..}) | Expr::Eval{..} => false,
+                    Expr::Atom(Atom::Symbol(_)) | Expr::Atom(Atom::Real{..}) | Expr::Atom(Atom::Integer{..}) | Expr::Eval{..} => false,
                 }
             }
         }

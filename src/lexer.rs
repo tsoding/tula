@@ -3,7 +3,7 @@ use std::fmt::{self, Write};
 use std::hash::{Hash, Hasher};
 use super::Result;
 
-pub const SPECIAL: &[char] = &['(', ')', '{', '}', '[', ']', '.'];
+pub const SPECIAL: &[char] = &['(', ')', '{', '}', '[', ']'];
 
 #[derive(Debug, Clone, Copy)]
 pub struct Loc<'nsa> {
