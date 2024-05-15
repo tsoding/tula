@@ -1,9 +1,9 @@
 trace Hello { 'Hello, ' 'World' . }
 
 for a in String
-case Hello a . -> (Hello a)
+case Hello a do . -> (Hello a)
 
 for a b in String {
-    case (Hello a) b . -> (Hello a b)
-    case (Hello a b) . [a + b] . Halt
+    case (Hello a) b do . -> (Hello a b)
+    case (Hello a b) . do [a + b] . Halt
 }

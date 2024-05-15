@@ -64,25 +64,46 @@ impl<'nsa> ScopedCase<'nsa> {
 #[derive(Debug, Clone)]
 struct Case<'nsa> {
     keyword: Symbol<'nsa>,
+
     state: Expr<'nsa>,
     read: Expr<'nsa>,
+    input: Option<Expr<'nsa>>,
+
     write: Expr<'nsa>,
     step: Expr<'nsa>,
     next: Expr<'nsa>,
+    output: Option<Expr<'nsa>>,
 }
 
 impl<'nsa> Case<'nsa> {
     fn parse(lexer: &mut Lexer<'nsa>, keyword: Symbol<'nsa>) -> Result<Self> {
         let state = Expr::parse(lexer)?;
         let read  = Expr::parse(lexer)?;
+
+        let mut input = None;
+        if let Some(input_keyword) = lexer.peek_symbol() {
+            if input_keyword.name == "input" {
+                input = Some(Expr::parse(lexer)?);
+            }
+        }
+
+        let _ = lexer.expect_symbols(&["do"])?;
         let write = Expr::parse(lexer)?;
         let step  = Expr::parse(lexer)?;
         let next  = Expr::parse(lexer)?;
-        Ok(Case{keyword, state, read, write, step, next})
+
+        let mut output = None;
+        if let Some(output_keyword) = lexer.peek_symbol() {
+            if output_keyword.name == "output" {
+                output = Some(Expr::parse(lexer)?);
+            }
+        }
+
+        Ok(Case{keyword, state, read, input, write, step, next, output})
     }
 
     fn substitute_var(&self, var: Symbol<'nsa>, expr: Expr<'nsa>) -> Self {
-        let Case{keyword, state, read, write, step, next} = self;
+        let Case{keyword, state, read, input, write, step, next, output} = self;
         // TODO: don't do this stupid thing, please
         // It would be better to transform this Case::substitute_var into similar substitute_bindings.
         // But that requires restructuring the code at the caller.
@@ -90,29 +111,52 @@ impl<'nsa> Case<'nsa> {
         bindings.insert(var, expr.clone());
         let state = state.substitute_bindings(&bindings);
         let read  = read.substitute_bindings(&bindings);
+        let input  = input.clone().map(|input| input.substitute_bindings(&bindings));
         let write = write.substitute_bindings(&bindings);
         let step  = step.substitute_bindings(&bindings);
         let next  = next.substitute_bindings(&bindings);
+        let output  = output.clone().map(|output| output.substitute_bindings(&bindings));
         let keyword = *keyword;
-        Case{keyword, state, read, write, step, next}
+        Case{keyword, state, read, input, write, step, next, output}
     }
 
     fn expand_recursively(&self, scope: &[(Symbol<'nsa>, Vec<Expr<'nsa>>)], normalize: bool) -> Result<()> {
         match scope {
             [] => {
-                let Case{keyword, state, read, write, step, next} = self.clone();
+                let Case{keyword, state, read, input, write, step, next, output} = self.clone();
                 let write = write.clone().force_evals()?;
                 let step = step.clone().force_evals()?;
                 let next = next.clone().force_evals()?;
+                let output = if let Some(output) = output {
+                    Some(output.clone().force_evals()?)
+                } else {
+                    None
+                };
                 if normalize {
                     let state = NormExpr(&state);
                     let read = NormExpr(&read);
                     let write = NormExpr(&write);
                     let step = NormExpr(&step);
                     let next = NormExpr(&next);
-                    println!("{keyword} {state} {read} {write} {step} {next}");
+                    print!("{keyword} {state} {read}");
+                    if let Some(input) = input {
+                        print!(" input {input}", input = NormExpr(&input));
+                    }
+                    print!(" do {write} {step} {next}");
+                    if let Some(output) = output {
+                        print!(" output {output}", output = NormExpr(&output));
+                    }
+                    println!();
                 } else {
-                    println!("{keyword} {state} {read} {write} {step} {next}");
+                    print!("{keyword} {state} {read}");
+                    if let Some(input) = input {
+                        print!(" input {input}", input = input);
+                    }
+                    print!(" do {write} {step} {next}");
+                    if let Some(output) = output {
+                        print!(" output {output}", output = output);
+                    }
+                    println!();
                 }
             }
             [(var, set), tail @ ..] => {
@@ -151,8 +195,16 @@ impl<'nsa> fmt::Display for Statement<'nsa> {
                 }
                 write!(f, "}}")
             }
-            Self::Case(Case{keyword, state, read, write, step, next}) => {
-                write!(f, "{keyword} {state} {read} {write} {step} {next}")
+            Self::Case(Case{keyword, state, read, input, write, step, next, output}) => {
+                write!(f, "{keyword} {state} {read}")?;
+                if let Some(input) = input {
+                    write!(f, " input {input}", input = NormExpr(&input))?;
+                }
+                write!(f, " do {write} {step} {next}")?;
+                if let Some(output) = output {
+                    write!(f, " output {output}", output = NormExpr(&output))?;
+                }
+                Ok(())
             }
             Self::For{var, set, body} => {
                 write!(f, "for {var} in {set} {body}")

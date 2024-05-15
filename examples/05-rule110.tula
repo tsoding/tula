@@ -2,33 +2,33 @@ let Cells { . # }
 
 run Entry { % . . . . . . . . . . . . . . . # . & 1 1 1 1 1 1 1 1 1 1 1 1 1 0 }
 
-case Entry % % ! I
+case Entry % do % ! I
 
-case I % % -> I
-for a     in Cells case I       a a -> (I a)
-for a b   in Cells case (I a)   b b -> (I a b)
-for a b c in Cells case (I a b) c c <- (R a b c)
-for a b   in Cells case (I a b) & & .  Print
+case I % do % -> I
+for a     in Cells case I       a do a -> (I a)
+for a b   in Cells case (I a)   b do b -> (I a b)
+for a b c in Cells case (I a b) c do c <- (R a b c)
+for a b   in Cells case (I a b) & do & .  Print
 
-case Print & & ! Dec
+case Print & do & ! Dec
 
-case Dec 0 0 <- Dec1
-for _ in { 1 & } case Dec _ _ -> Dec
-case Dec1 1 0 <- Reset
-case Dec1 & & . Halt
+case Dec 0 do 0 <- Dec1
+for _ in { 1 & } case Dec _ do _ -> Dec
+case Dec1 1 do 0 <- Reset
+case Dec1 & do & . Halt
 
-case Reset % % -> I
+case Reset % do % -> I
 for _ in Cells + { 1 & } {
-    case Reset _ _ <- Reset
+    case Reset _ do _ <- Reset
 }
 
 for _ in Cells {
-    case (R . . .) _ . -> (I .)
-    case (R . . #) _ # -> (I .)
-    case (R . # .) _ # -> (I #)
-    case (R . # #) _ # -> (I #)
-    case (R # . .) _ . -> (I .)
-    case (R # . #) _ # -> (I .)
-    case (R # # .) _ # -> (I #)
-    case (R # # #) _ . -> (I #)
+    case (R . . .) _ do . -> (I .)
+    case (R . . #) _ do # -> (I .)
+    case (R . # .) _ do # -> (I #)
+    case (R . # #) _ do # -> (I #)
+    case (R # . .) _ do . -> (I .)
+    case (R # . #) _ do # -> (I .)
+    case (R # # .) _ do # -> (I #)
+    case (R # # #) _ do . -> (I #)
 }
