@@ -365,6 +365,7 @@ This specifically makes the program halt at `5` because it does not have a case 
 
 Additional Magical Sets include:
 - Real - Set of Real Numbers (corresponds to f32 in Rust)
+- String - Set of Strings (symbols wrapped in single quotes `'`)
 
 ## Eval Expressions (EEs)
 
@@ -459,4 +460,6 @@ Eval: 69 420 &
 ```
 
 - Supported Integer operations: `+`, `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=`, `==`, `!=`.
+- Supported Real operations: `+`, `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=`, `==`, `!=`.
+- Supported String operations: `+`, `<`, `<=`, `>`, `>=`, `==`, `!=`.
 - Supported Boolean operations: `&&`, `||`, `==`, `!=` (Boolean is either symbol `true` or symbol `false`).
