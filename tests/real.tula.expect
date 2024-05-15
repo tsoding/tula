@@ -1,4 +1,4 @@
-./tests/real.tula:1:1: run
+./tests/real.tula:1:1: trace
 Sum_Real: 3.4 3.5 .
           ^~~
 (Sum_Real 3.4): . 3.5 .

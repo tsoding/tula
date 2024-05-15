@@ -1,4 +1,4 @@
-./examples/02-parens.tula:4:1: run
+./examples/02-parens.tula:4:1: trace
 Entry: & '(' '(' '(' ')' ')' ')' & 0
        ^
 Pick: & '(' '(' '(' ')' ')' ')' & 0

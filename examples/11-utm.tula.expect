@@ -1,4 +1,4 @@
-./examples/11-utm.tula:1:1: run
+./examples/11-utm.tula:1:1: trace
 (UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
            ^
 (UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
