@@ -19,15 +19,27 @@ pub enum Atom<'nsa> {
 }
 
 impl<'nsa> Atom<'nsa> {
+    pub fn loc(&self) -> &Loc {
+        match self {
+            Self::Symbol(Symbol{loc, ..}) => loc,
+            Self::Integer{loc, ..} => loc,
+            Self::Real{loc, ..} => loc,
+        }
+    }
+
+    pub fn human(&self) -> &'static str {
+        match self {
+            Self::Symbol(..) => "symbol",
+            Self::Integer{..} => "integer value",
+            Self::Real{..} => "real value",
+        }
+    }
+
     pub fn expect_real(&self) -> Result<f32> {
         match self {
             &Self::Real{value, ..} => Ok(value),
-            &Self::Integer{value, loc} => {
-                eprintln!("{loc}: ERROR: expected real but got integer {value}");
-                Err(())
-            }
-            Self::Symbol(symbol) => {
-                eprintln!("{loc}: ERROR: expected real but got symbol `{symbol}`", loc = symbol.loc);
+            _ => {
+                eprintln!("{loc}: ERROR: expected real value but got {human} `{value}`", loc = self.loc(), human = self.human(), value = self);
                 Err(())
             }
         }
@@ -36,12 +48,8 @@ impl<'nsa> Atom<'nsa> {
     pub fn expect_integer(&self) -> Result<i64> {
         match self {
             &Self::Integer{value, ..} => Ok(value),
-            &Self::Real{value, loc} => {
-                eprintln!("{loc}: ERROR: expected integer but got real {value}");
-                Err(())
-            }
-            Self::Symbol(symbol) => {
-                eprintln!("{loc}: ERROR: expected integer but got symbol `{symbol}`", loc = symbol.loc);
+            _ => {
+                eprintln!("{loc}: ERROR: expected real value but got {human} `{value}`", loc = self.loc(), human = self.human(), value = self);
                 Err(())
             }
         }
@@ -49,15 +57,11 @@ impl<'nsa> Atom<'nsa> {
 
     pub fn expect_symbol(&self) -> Result<&Symbol<'nsa>> {
         match self {
-            Self::Integer{loc, ..} => {
-                eprintln!("{loc}: ERROR: expected symbol but got integer");
-                Err(())
-            }
-            &Self::Real{value, loc} => {
-                eprintln!("{loc}: ERROR: expected symbol but got real {value}");
-                Err(())
-            }
             Self::Symbol(symbol) => Ok(symbol),
+            _ => {
+                eprintln!("{loc}: ERROR: expected real value but got {human} `{value}`", loc = self.loc(), human = self.human(), value = self);
+                Err(())
+            }
         }
     }
 
