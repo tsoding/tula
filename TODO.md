@@ -44,8 +44,7 @@
   - Right now we get a standard Rust panic
 - [ ] More Magical Sets
   - [x] Real
-  - [ ] Char
-  - [ ] String
+  - [x] String
   - [ ] Boolean
     - Could be user defined
     ```tula
@@ -55,6 +54,7 @@
     - Could be user defined
     - Set of all possible Step actions like `->`, `<-`, `.`, `!`, etc
   - [ ] Byte
+  - [ ] Char
 - [ ] Explicitly denote Halt States
   - Useful for catching unreachable states at runtime
 - [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
