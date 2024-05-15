@@ -187,17 +187,16 @@ impl<'nsa> Statement<'nsa> {
                     }
                     let expr = Expr::parse(lexer)?;
                     match expr {
-                        Expr::Atom(Atom::Symbol(symbol)) => vars.push(symbol),
-                        Expr::Atom(Atom::Integer{loc, ..}) => {
-                            eprintln!("{loc}: ERROR: Integers may not be used as variable names");
-                            return Err(())
+                        Expr::Atom(atom) => {
+                            match atom {
+                                Atom::Symbol(symbol) => vars.push(symbol),
+                                Atom::Integer{..} | Atom::Real{..} | Atom::String{..} => {
+                                    eprintln!("{loc}: ERROR: {human} may not be used as variable names", loc = atom.loc(), human = atom.human());
+                                    return Err(())
+                                }
+                            }
                         }
-                        Expr::Atom(Atom::Real{loc, ..}) => {
-                            eprintln!("{loc}: ERROR: Reals may not be used as variable names");
-                            return Err(())
-                        }
-                        Expr::Eval{loc, ..} |
-                        Expr::Tuple{loc, ..} => {
+                        Expr::Eval{loc, ..} | Expr::Tuple{loc, ..} => {
                             eprintln!("{loc}: ERROR: Pattern Matching in Universal Quantifiers is not supported");
                             return Err(())
                         }
@@ -416,22 +415,22 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
             }
             "let" => {
                 lexer.next_symbol();
-                let name = match Atom::from_symbol(lexer.parse_symbol()?)? {
+                let atom = Atom::from_symbol(lexer.parse_symbol()?)?;
+                let name = match atom {
                     Atom::Symbol(name) => name,
-                    Atom::Integer{loc, ..} => {
-                        eprintln!("{loc}: ERROR: set name may not be an integer");
-                        return Err(())
-                    }
-                    Atom::Real{loc, ..} => {
-                        eprintln!("{loc}: ERROR: set name may not be a real number");
+                    Atom::Integer{..} | Atom::Real{..} | Atom::String{..} => {
+                        eprintln!("{loc}: ERROR: set name may not be {human}", loc = atom.loc(), human = atom.human());
                         return Err(())
                     }
                 };
                 // TODO: improve extendability of this piece of code.
                 //   If I add more magical sets, it's easy to forget to update this match.
-                if name.name == "Integer" {
-                    eprintln!("{loc}: ERROR: redefinition of a magical set {name}", loc = name.loc);
-                    return Err(());
+                match name.name {
+                    "Integer" | "Real" | "String" => {
+                        eprintln!("{loc}: ERROR: redefinition of a magical set {name}", loc = name.loc);
+                        return Err(());
+                    }
+                    _ => {}
                 }
                 if let Some((orig_name, _)) = sets.get_key_value(&name) {
                     eprintln!("{loc}: ERROR: redefinition of set {name}", loc = name.loc);

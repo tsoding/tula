@@ -121,13 +121,10 @@ impl<'nsa> SetExpr<'nsa> {
             }
             _ => {
                 let _ = lexer.next_symbol().unwrap();
-                match Atom::from_symbol(symbol)? {
-                    Atom::Integer{loc, ..} => {
-                        eprintln!("{loc}: ERROR: integer is not a set expression");
-                        return Err(())
-                    }
-                    Atom::Real{loc, ..} => {
-                        eprintln!("{loc}: ERROR: real is not a set expression");
+                let atom = Atom::from_symbol(symbol)?;
+                match atom {
+                    Atom::Integer{..} | Atom::Real{..} | Atom::String{..} => {
+                        eprintln!("{loc}: ERROR: {human} is not a set expression", loc = atom.loc(), human = atom.human());
                         return Err(())
                     }
                     Atom::Symbol(symbol) => match symbol.name {
