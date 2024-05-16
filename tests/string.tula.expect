@@ -1,4 +1,4 @@
-./tests/string.tula:1:1: trace
+./tests/string.tula:1:1: run
 Hello: 'Hello, ' 'World' .
        ^~~~~~~~~
 (Hello 'Hello, '): . 'World' .

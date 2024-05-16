@@ -1,4 +1,4 @@
-./examples/03-pairs.tula:5:1: trace
+./examples/03-pairs.tula:5:1: run
 Swap: (69 420) (1337 7331) (42 37) &
       ^~~~~~~~
 Swap: (420 69) (1337 7331) (42 37) &

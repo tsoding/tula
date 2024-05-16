@@ -1,9 +1,9 @@
-./examples/01-inc.tula:7:1: trace
+./examples/01-inc.tula:7:1: run
 Inc: 0 0 0 1 0
      ^
 Halt: 1 0 0 1 0
         ^
-./examples/01-inc.tula:8:1: trace
+./examples/01-inc.tula:8:1: run
 Inc: 1 1 1 0
      ^
 Inc: 0 1 1 0
@@ -14,7 +14,7 @@ Inc: 0 0 0 0
            ^
 Halt: 0 0 0 1 0
               ^
-./examples/01-inc.tula:10:1: trace
+./examples/01-inc.tula:10:1: run
 Dec: 0 0 0 1 0
      ^
 Dec: 1 0 0 1 0
@@ -25,7 +25,7 @@ Dec: 1 1 1 1 0
            ^
 Halt: 1 1 1 0 0
               ^
-./examples/01-inc.tula:11:1: trace
+./examples/01-inc.tula:11:1: run
 Dec: 1 1 1 0
      ^
 Halt: 0 1 1 0

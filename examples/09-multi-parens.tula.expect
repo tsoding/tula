@@ -1,4 +1,4 @@
-./examples/09-multi-parens.tula:5:1: trace
+./examples/09-multi-parens.tula:5:1: run
 Entry: % '[' '(' ')' ']' '{' '}' & .
        ^
 Pick: % '[' '(' ')' ']' '{' '}' & .

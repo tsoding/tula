@@ -1,4 +1,4 @@
-./examples/08-reverse.tula:3:1: trace
+./examples/08-reverse.tula:3:1: run
 Entry: % a b c a b c & _
        ^
 Init: % a b c a b c & _
