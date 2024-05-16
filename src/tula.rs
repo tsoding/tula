@@ -24,7 +24,7 @@ struct ScopedCase<'nsa> {
 }
 
 impl<'nsa> ScopedCase<'nsa> {
-    fn type_check_next_case(&self, sets: &Sets<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>, Option<Expr<'nsa>>)>> {
+    fn type_check_next_case(&self, sets: &Sets<'nsa>, state: &Expr<'nsa>, read: &Expr<'nsa>) -> Result<Option<(Expr<'nsa>, Expr<'nsa>, Expr<'nsa>)>> {
         let mut bindings = HashMap::new();
 
         if !self.case.state.clone().force_evals()?.pattern_match(state, &self.scope, &mut bindings) {
@@ -47,12 +47,7 @@ impl<'nsa> ScopedCase<'nsa> {
         Ok(Some((
             self.case.write.substitute_bindings(&bindings).force_evals()?,
             self.case.step.substitute_bindings(&bindings).force_evals()?,
-            self.case.next.substitute_bindings(&bindings).force_evals()?,
-            if let Some(output) = self.case.output.clone() {
-                Some(output.substitute_bindings(&bindings).force_evals()?)
-            } else {
-                None
-            }
+            self.case.next.substitute_bindings(&bindings).force_evals()?
         )))
     }
 
@@ -88,7 +83,6 @@ impl<'nsa> Case<'nsa> {
         let mut input = None;
         if let Some(input_keyword) = lexer.peek_symbol() {
             if input_keyword.name == "input" {
-                lexer.next_symbol();
                 input = Some(Expr::parse(lexer)?);
             }
         }
@@ -101,7 +95,6 @@ impl<'nsa> Case<'nsa> {
         let mut output = None;
         if let Some(output_keyword) = lexer.peek_symbol() {
             if output_keyword.name == "output" {
-                lexer.next_symbol();
                 output = Some(Expr::parse(lexer)?);
             }
         }
@@ -332,7 +325,7 @@ struct Machine<'nsa> {
 impl<'nsa> Machine<'nsa> {
     fn next(&mut self, scoped_cases: &[ScopedCase<'nsa>], sets: &Sets<'nsa>) -> Result<()> {
         for case in scoped_cases {
-            if let Some((write, step, next, output)) = case.type_check_next_case(sets, &self.state, &self.tape[self.head])? {
+            if let Some((write, step, next)) = case.type_check_next_case(sets, &self.state, &self.tape[self.head])? {
                 self.tape[self.head] = write.force_evals()?;
                 let step = step.expect_atom()?.expect_symbol()?;
                 match step.name {
@@ -357,63 +350,6 @@ impl<'nsa> Machine<'nsa> {
                     }
                 }
                 self.state = next;
-                if let Some(output) = output {
-                    use raylib_ffi::{ClearBackground, BeginDrawing, EndDrawing, WindowShouldClose, colors, DrawRectangle};
-                    use std::os::raw::c_int;
-                    unsafe {
-                        let color_by_name = |name| {
-                            match name {
-                                "BLACK" => colors::BLACK,
-                                "RED" => colors::RED,
-                                "GREEN" => colors::GREEN,
-                                "BLUE" => colors::BLUE,
-                                _ => todo!("Report unknown color"),
-                            }
-                        };
-                        match output {
-                            Expr::Atom(atom) => {
-                                match atom {
-                                    Atom::Symbol(symbol) => {
-                                        match symbol.name {
-                                            "NextFrame" => {
-                                                EndDrawing();
-                                                if WindowShouldClose() {
-                                                    self.halt = true;
-                                                    return Ok(());
-                                                }
-                                                BeginDrawing();
-                                            }
-                                            _ => {
-                                                todo!("Report unknown output");
-                                            }
-                                        }
-                                    }
-                                    _ => {
-                                        todo!("Report unknown output");
-                                    }
-                                }
-                            }
-                            Expr::Tuple{elements, ..} => {
-                                match &elements.as_slice() {
-                                    &[Expr::Atom(Atom::Symbol(Symbol{name: "ClearBackground", ..})),
-                                      Expr::Atom(Atom::Symbol(color))] => {
-                                        ClearBackground(color_by_name(color.name));
-                                    }
-                                    &[Expr::Atom(Atom::Symbol(Symbol{name: "DrawRectangle", ..})),
-                                      Expr::Atom(Atom::Real{value: x, ..}),
-                                      Expr::Atom(Atom::Real{value: y, ..}),
-                                      Expr::Atom(Atom::Real{value: width, ..}),
-                                      Expr::Atom(Atom::Real{value: height, ..}),
-                                      Expr::Atom(Atom::Symbol(color))] => {
-                                        DrawRectangle(*x as c_int, *y as c_int, *width as c_int, *height as c_int, color_by_name(color.name));
-                                    }
-                                    _ => todo!("Report unknown output"),
-                                }
-                            }
-                            _ => todo!("Report unknown output"),
-                        }
-                    }
-                }
                 self.halt = false;
                 break;
             }
@@ -456,49 +392,21 @@ impl<'nsa> Machine<'nsa> {
     }
 }
 
-#[derive(PartialEq)]
-enum RunKind {
-    Run,
-    Trace,
-    Display,
-}
-
-impl fmt::Display for RunKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RunKind::Run => write!(f, "run"),
-            RunKind::Trace => write!(f, "trace"),
-            RunKind::Display => write!(f, "display"),
-        }
-    }
-}
-
-impl RunKind {
-    fn from_name(name: &str) -> Option<RunKind> {
-        match name {
-            "run" => Some(RunKind::Run),
-            "trace" => Some(RunKind::Trace),
-            "display" => Some(RunKind::Display),
-            _ => None,
-        }
-    }
-}
-
 struct Run<'nsa> {
     keyword: Symbol<'nsa>,
-    kind: RunKind,
     state: Expr<'nsa>,
     open_curly_of_tape: Symbol<'nsa>,
     tape: Vec<Expr<'nsa>>,
+    trace: bool,
 }
 
 impl<'nsa> Run<'nsa> {
     fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
-        let keyword = lexer.expect_symbols(&["run", "trace", "display"])?;
+        let keyword = lexer.expect_symbols(&["run", "trace"])?;
         let state = Expr::parse(lexer)?.force_evals()?;
         let (open_curly_of_tape, tape) = Self::parse_tape(lexer)?;
-        let kind = RunKind::from_name(keyword.name).expect("The correctness of Run keyword should be checked by the lexer.expect_symbols()");
-        Ok(Run {keyword, kind, state, open_curly_of_tape, tape})
+        let trace = keyword.name == "trace";
+        Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
     }
 
     fn parse_tape(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Expr<'nsa>>)> {
@@ -515,10 +423,10 @@ impl<'nsa> Run<'nsa> {
     }
 
     fn expand(&self, normalize: bool) {
-        match self.kind {
-            RunKind::Run => print!("run"),
-            RunKind::Trace => print!("trace"),
-            RunKind::Display => print!("Displa"),
+        if self.trace {
+            print!("trace");
+        } else {
+            print!("run");
         }
         print!(" {entry}", entry = self.state);
         print!(" {{");
@@ -551,7 +459,7 @@ fn parse_program<'nsa>(lexer: &mut Lexer<'nsa>) -> Result<(Sets<'nsa>, Vec<State
     let mut runs = vec![];
     while let Some(key) = lexer.peek_symbol() {
         match key.name {
-            "run" | "trace" | "display" => {
+            "run" | "trace" => {
                 runs.push(Run::parse(lexer)?);
             }
             "case" | "for" => {
@@ -637,7 +545,7 @@ const COMMANDS: &[Command] = &[
             let scoped_cases = compile_cases_from_statements(&statements)?;
 
             for run in &runs {
-                println!("{loc}: {kind}", loc = run.keyword.loc, kind = run.kind);
+                println!("{loc}: run", loc = run.keyword.loc);
 
                 let tape_default;
                 if let Some(symbol) = run.tape.last().cloned() {
@@ -654,25 +562,12 @@ const COMMANDS: &[Command] = &[
                     halt: false,
                 };
 
-                match run.kind {
-                    RunKind::Run | RunKind::Trace => {
-                        while !machine.halt {
-                            if run.kind == RunKind::Trace {
-                                machine.trace();
-                            }
-                            machine.halt = true;
-                            machine.next(&scoped_cases, &sets)?;
-                        }
+                while !machine.halt {
+                    if run.trace {
+                        machine.trace();
                     }
-                    RunKind::Display => unsafe {
-                        use raylib_ffi::{InitWindow, CloseWindow};
-                        InitWindow(800, 600, c"Tula - Display".as_ptr());
-                        while !machine.halt {
-                            machine.halt = true;
-                            machine.next(&scoped_cases, &sets)?;
-                        }
-                        CloseWindow();
-                    }
+                    machine.halt = true;
+                    machine.next(&scoped_cases, &sets)?;
                 }
             }
 

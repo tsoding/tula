@@ -44,7 +44,7 @@
 
 (eval-and-compile
   (defconst tula-keywords
-    '("if" "for" "case" "run" "trace" "in" "let" "do" "input" "output" "read" "write" "display")))
+    '("if" "for" "case" "run" "trace" "in" "let" "do" "input" "output" "read" "write")))
 
 (defconst tula-highlights
   `((,(regexp-opt tula-keywords 'symbols) . font-lock-keyword-face)))
