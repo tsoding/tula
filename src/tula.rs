@@ -340,12 +340,37 @@ impl<'nsa> Machine<'nsa> {
     }
 }
 
+#[derive(PartialEq)]
+enum RunKind {
+    Run,
+    Trace,
+}
+
+impl RunKind {
+    fn from_name(name: &str) -> Option<RunKind> {
+        match name {
+            "run" => Some(RunKind::Run),
+            "trace" => Some(RunKind::Trace),
+            _ => None
+        }
+    }
+}
+
+impl fmt::Display for RunKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RunKind::Run => write!(f, "run"),
+            RunKind::Trace => write!(f, "trace"),
+        }
+    }
+}
+
 struct Run<'nsa> {
+    kind: RunKind,
     keyword: Symbol<'nsa>,
     state: Expr<'nsa>,
     open_curly_of_tape: Symbol<'nsa>,
     tape: Vec<Expr<'nsa>>,
-    trace: bool,
 }
 
 impl<'nsa> Run<'nsa> {
@@ -353,8 +378,8 @@ impl<'nsa> Run<'nsa> {
         let keyword = lexer.expect_symbols(&["run", "trace"])?;
         let state = Expr::parse(lexer)?.force_evals()?;
         let (open_curly_of_tape, tape) = Self::parse_tape(lexer)?;
-        let trace = keyword.name == "trace";
-        Ok(Run {keyword, state, open_curly_of_tape, tape, trace})
+        let kind = RunKind::from_name(keyword.name).unwrap();
+        Ok(Run {keyword, state, open_curly_of_tape, tape, kind})
     }
 
     fn parse_tape(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Expr<'nsa>>)> {
@@ -371,11 +396,7 @@ impl<'nsa> Run<'nsa> {
     }
 
     fn expand(&self, normalize: bool) {
-        if self.trace {
-            print!("trace");
-        } else {
-            print!("run");
-        }
+        print!("{kind}", kind = self.kind);
         print!(" {entry}", entry = self.state);
         print!(" {{");
         for (i, expr) in self.tape.iter().enumerate() {
@@ -493,7 +514,7 @@ const COMMANDS: &[Command] = &[
             let scoped_cases = compile_cases_from_statements(&statements)?;
 
             for run in &runs {
-                println!("{loc}: run", loc = run.keyword.loc);
+                println!("{loc}: {kind}", loc = run.keyword.loc, kind = run.kind);
 
                 let tape_default;
                 if let Some(symbol) = run.tape.last().cloned() {
@@ -511,7 +532,7 @@ const COMMANDS: &[Command] = &[
                 };
 
                 while !machine.halt {
-                    if run.trace {
+                    if run.kind == RunKind::Trace {
                         machine.trace();
                     }
                     machine.halt = true;

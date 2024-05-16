@@ -1,4 +1,4 @@
-./examples/07-fib.tula:9:1: run
+./examples/07-fib.tula:9:1: trace
 Fib: 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 &
      ^
 (Fib 0): 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 &
