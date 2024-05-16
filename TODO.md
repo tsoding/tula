@@ -115,3 +115,5 @@
 - [ ] Proper infix expressions inside of Evals
   - Since operators themselves also can be substituted I'm not sure how to go about it...
 - [ ] Something visual, maybe with Raylib
+- [ ] Extension Devices
+  - It's unclear how to make this idea usable from the syntactical point of view.
