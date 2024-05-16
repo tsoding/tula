@@ -42,6 +42,8 @@
 - [x] Cartesian Products for Sets
 - [x] Custom Integer overflow/underflow Runtime Errors
   - Right now we get a standard Rust panic
+- [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
+  - Or even numbers
 - [ ] More Magical Sets
   - [x] Real
   - [x] String
@@ -57,8 +59,6 @@
   - [ ] Char
 - [ ] Explicitly denote Halt States
   - Useful for catching unreachable states at runtime
-- [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
-  - Or even numbers
 
 # Examples
 
