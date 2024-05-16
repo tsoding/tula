@@ -5,22 +5,22 @@ let Dir   { -> <- }
 let Delim { % & }
 let Phase { Inc Dec }
 
-case Add % do % -> Dec
+case Add % % -> Dec
 
-case Dec 1 do 0 -> (Switch & -> Inc)
-case Dec 0 do 1 -> Dec
-case Dec & do & . Done
+case Dec 1 0 -> (Switch & -> Inc)
+case Dec 0 1 -> Dec
+case Dec & & . Done
 
-case Inc 0 do 1 -> (Switch % <- Dec)
-case Inc 1 do 0 -> Inc
+case Inc 0 1 -> (Switch % <- Dec)
+case Inc 1 0 -> Inc
 
 for delim in Delim
 for _dir in Dir
 for phase in Phase
-case (Switch delim _dir phase) delim do delim -> phase
+case (Switch delim _dir phase) delim delim -> phase
 
 for _ in Bit + Delim
 for delim in Delim
 for dir in Dir
 for phase in Phase
-case (Switch delim dir phase) _ do _ dir (Switch delim dir phase)
+case (Switch delim dir phase) _ _ dir (Switch delim dir phase)

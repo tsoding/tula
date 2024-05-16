@@ -2,15 +2,15 @@
 run (Fib 0 1 0) { . }
 
 for a b acc in Integer {
-    case (Fib a b acc)              . do . . (Check_Over a b [a < 4000000] acc)
+    case (Fib a b acc)              . . . (Check_Over a b [a < 4000000] acc)
 
-    case (Check_Over a b true acc)  . do . . (Check_Even a b [[a % 2] == 0] acc)
-    case (Check_Over a b false acc) . do . . (Over acc)
+    case (Check_Over a b true acc)  . . . (Check_Even a b [[a % 2] == 0] acc)
+    case (Check_Over a b false acc) . . . (Over acc)
 
-    case (Check_Even a b true acc)  . do . . (Fib b [a + b] [acc + a])
-    case (Check_Even a b false acc) . do . . (Fib b [a + b] acc)
+    case (Check_Even a b true acc)  . . . (Fib b [a + b] [acc + a])
+    case (Check_Even a b false acc) . . . (Fib b [a + b] acc)
 }
 
 for acc in Integer {
-    case (Over acc) . do acc ! Halt
+    case (Over acc) . acc ! Halt
 }

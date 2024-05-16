@@ -14,37 +14,37 @@ let Any    ( Rule + { & } + Alpha )
 
 for s in State
 for r in Alpha
-case (UTM s) (head r) do (head r) <- (Match s r)
+case (UTM s) (head r) (head r) <- (Match s r)
  
 for _ in Any + { % }
 for s in State
-case (UTM s) _ do _ -> (UTM s)
+case (UTM s) _ _ -> (UTM s)
 
 for s n in State
 for r w in Alpha
 for a in Action
-case (Match s r) (s r w a n) do (s r w a n) -> (Write w a n)
+case (Match s r) (s r w a n) (s r w a n) -> (Write w a n)
 
 for _ in Any
 for s in State
 for r in Alpha
-case (Match s r) _ do _ <- (Match s r)
+case (Match s r) _ _ <- (Match s r)
 
 for _ in Alpha
 for w in Alpha
 for a in Action
 for n in State
-case (Write w a n) (head _) do w a (Next n)
+case (Write w a n) (head _) w a (Next n)
 
 for _ in Any
 for w in Alpha
 for a in Action
 for n in State
-case (Write w a n) _ do _ -> (Write w a n)
+case (Write w a n) _ _ -> (Write w a n)
 
 for s in State
-case (Next s) & do & . Tape_Underflow
+case (Next s) & & . Tape_Underflow
 
 for s in State
 for r in Alpha
-case (Next s) r do (head r) <- (Match s r)
+case (Next s) r (head r) <- (Match s r)

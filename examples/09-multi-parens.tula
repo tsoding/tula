@@ -4,35 +4,36 @@ let Paren Open + Close
 
 trace Entry { % '[' '(' ')' ']' '{' '}' & . }
 
-case Entry % do % -> Pick
+case Entry % % -> Pick
 
-case Pick & do & -> Verify
+case Pick & & -> Verify
 
-for p in Open case Verify p do p . (Unbalanced Overflow)
-case Verify . do . . Balanced
+for p in Open case Verify p p . (Unbalanced Overflow)
+case Verify . . . Balanced
 
-for p   in Paren case Pick     p do % -> (Pick p)
-for p q in Paren case (Pick p) q do q -> (Pick p)
-for p   in Paren case (Pick p) & do & -> (Update p)
+for p   in Paren case Pick     p % -> (Pick p)
+for p q in Paren case (Pick p) q q -> (Pick p)
+for p   in Paren case (Pick p) & & -> (Update p)
 
-for p q in Open  case (Update p) q do q -> (Update p)
-for p   in Open  case (Update p) . do p <- Entry
+for p q in Open  case (Update p) q q -> (Update p)
+for p   in Open  case (Update p) . p <- Entry
 
 for p in Close
 for q in Open
-case (Update p) q do q -> (Update p)
+case (Update p) q q -> (Update p)
 
 for p in Close
-case (Update p) . do . <- (Pop p)
+case (Update p) . . <- (Pop p)
 
 for p in Close
-case (Pop p) & do & . (Unbalanced Underflow)
+case (Pop p) & & . (Unbalanced Underflow)
 
-case (Pop ')') '(' do . <- Entry
-case (Pop ']') '[' do . <- Entry
-case (Pop '}') '{' do . <- Entry
+case (Pop ')') '(' . <- Entry
+case (Pop ']') '[' . <- Entry
+case (Pop '}') '{' . <- Entry
 for p in Close
 for q in Open
-case (Pop p) q do q . (Unbalanced Mismatch q p)
+case (Pop p) q q . (Unbalanced Mismatch q p)
 
-for _ in Paren + { & } case Entry _ do _ <- Entry
+for _ in Paren + { & } case Entry _ _ <- Entry
+

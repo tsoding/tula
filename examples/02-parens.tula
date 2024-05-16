@@ -3,33 +3,33 @@ let Bits { 0 1 }
 
 trace Entry { & '(' '(' '(' ')' ')' ')' & 0 }
 
-case Entry & do & -> Pick
+case Entry & & -> Pick
 
 for p in Parens
-case Pick p do & -> (Pick p)
-case Pick & do & -> Verify
+case Pick p & -> (Pick p)
+case Pick & & -> Verify
 
-case Verify 0 do 0 -> Balanced
-case Verify 1 do 1 -> Unbalanced
+case Verify 0 0 -> Balanced
+case Verify 1 1 -> Unbalanced
 
 for p a in Parens
-case (Pick p) a do a -> (Pick p)
+case (Pick p) a a -> (Pick p)
 
-case (Pick '(') & do & -> Inc
-case (Pick ')') & do & -> Dec
+case (Pick '(') & & -> Inc
+case (Pick ')') & & -> Dec
 
-case Inc 0 do 1 <- (Reset Bits)
-case Inc 1 do 1 -> Inc
+case Inc 0 1 <- (Reset Bits)
+case Inc 1 1 -> Inc
 
 for a in Bits
-case (Reset Bits) a do a <- (Reset Bits)
-case (Reset Bits) & do & <- (Reset Parens)
+case (Reset Bits) a a <- (Reset Bits)
+case (Reset Bits) & & <- (Reset Parens)
 
 for p in Parens
-case (Reset Parens) p do p <- (Reset Parens)
-case (Reset Parens) & do & -> Pick
+case (Reset Parens) p p <- (Reset Parens)
+case (Reset Parens) & & -> Pick
 
-case Dec  1 do 1 -> Dec
-case Dec  0 do 0 <- Dec1
-case Dec1 1 do 0 <- (Reset Bits)
-case Dec1 & do & <- Unbalanced
+case Dec 1 1 -> Dec
+case Dec 0 0 <- Dec1
+case Dec1 1 0 <- (Reset Bits)
+case Dec1 & & <- Unbalanced

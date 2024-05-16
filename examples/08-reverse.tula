@@ -2,21 +2,21 @@ let Alpha { a b c }
 
 trace Entry { % a b c a b c & _ }
 
-case Entry % do % -> Init
+case Entry % % -> Init
 
 for :a in Alpha
-case Init :a do :a -> Init
-case Init  & do  & <- Pick
+case Init :a :a -> Init
+case Init  &  & <- Pick
 
-case Pick & do & <- Pick
+case Pick & & <- Pick
 for :a in Alpha {
-    case Pick      :a do & -> (Pick :a)
-    case (Pick :a)  & do & -> (Pick :a)
+    case Pick      :a  & -> (Pick :a)
+    case (Pick :a)  &  & -> (Pick :a)
 
     for :b in Alpha
-    case (Pick :a) :b do :b -> (Pick :a)
+    case (Pick :a) :b :b -> (Pick :a)
 
-    case (Pick :a)  _ do :a <- Reset
-    case Reset     :a do :a <- Reset
+    case (Pick :a)  _ :a <- Reset
+    case Reset     :a :a <- Reset
 }
-case Reset & do & <- Pick
+case Reset & & <- Pick

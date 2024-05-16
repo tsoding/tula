@@ -1,9 +1,9 @@
 for a in Integer
-case Fib a do a -> (Fib a)
+case Fib a a -> (Fib a)
 
 for a b in Integer {
-    case (Fib a)   b do b       -> (Fib a b)
-    case (Fib a b) 0 do [a + b] .  (Fib b)
+    case (Fib a)   b b       -> (Fib a b)
+    case (Fib a b) 0 [a + b] .  (Fib b)
 }
 
 trace Fib { 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 & }

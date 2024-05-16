@@ -1,8 +1,8 @@
-case Inc 0 do 1 -> Halt
-case Inc 1 do 0 -> Inc
+case Inc 0 1 -> Halt
+case Inc 1 0 -> Inc
 
-case Dec 1 do 0 -> Halt
-case Dec 0 do 1 -> Dec
+case Dec 1 0 -> Halt
+case Dec 0 1 -> Dec
 
 trace Inc { 0 0 0 1 0 }
 trace Inc { 1 1 1 0 }

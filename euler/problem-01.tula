@@ -5,15 +5,15 @@ let Bool { true false }
 run (Entry 0 0) { . }
 
 for i result in Integer {
-    case (Entry i result) . do . . (Check i [i < 1000] result)
+    case (Entry i result) . . . (Check i [i < 1000] result)
 
-    case (Check i true  result) . do . . (Add i [[[i % 3] == 0] || [[i % 5] == 0]] result)
-    case (Check i false result) . do . . (Over result)
+    case (Check i true  result) . . . (Add i [[[i % 3] == 0] || [[i % 5] == 0]] result)
+    case (Check i false result) . . . (Over result)
 
-    case (Add i true result) . do . . (Entry [i + 1] [result + i])
-    case (Add i false result) . do . . (Entry [i + 1] result)
+    case (Add i true result) . . . (Entry [i + 1] [result + i])
+    case (Add i false result) . . . (Entry [i + 1] result)
 }
 
 for result in Integer {
-    case (Over result) . do result ! Halt
+    case (Over result) . result ! Halt
 }
