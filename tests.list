@@ -9,6 +9,7 @@
 ./examples/09-multi-parens.tula
 ./examples/10-fizz-buzz.tula
 ./examples/11-utm.tula
+./examples/12-bubble-sort.tula
 ./euler/problem-01.tula
 ./euler/problem-02.tula
 ./euler/problem-03.tula

@@ -1,0 +1,24 @@
+trace Bubble_Sort { . 2 6 4 1 5 3 . }
+
+case Bubble_Sort . . -> Loop
+
+for n in Integer
+case Loop n n -> (Loop n)
+
+for n m in Integer {
+    case (Loop n) m m . (Swap? [n > m] n m)
+
+    case (Swap? false n m) m m -> (Loop m)
+    case (Swap? true  n m) m n <- (Swap1 n m)
+    case (Swap1 n m)       n m -> (Swap2 n m)
+    case (Swap2 n m)       n n -> (Loop n)
+}
+
+for n in Integer {
+    case (Loop n)   . n <- (Narrow n)
+    case (Narrow n) n . <- Reset
+}
+
+for n in Integer
+case Reset n n <- Reset
+case Reset . . -> Loop
