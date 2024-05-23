@@ -264,31 +264,61 @@ impl<'nsa> Statement<'nsa> {
 #[derive(Debug)]
 struct Machine<'nsa> {
     state: Expr<'nsa>,
-    tape: Vec<Expr<'nsa>>,
-    tape_default: Expr<'nsa>,
-    head: usize,
+    tape_right: Vec<Expr<'nsa>>,
+    tape_left: Vec<Expr<'nsa>>,
+    tape_right_default: Expr<'nsa>,
+    tape_left_default: Expr<'nsa>,
+    head: i32,
     halt: bool,
 }
 
 impl<'nsa> Machine<'nsa> {
+    fn head_cell(&mut self) -> &Expr<'nsa> {
+        if self.head >= 0 {
+            let index = self.head as usize;
+            while index >= self.tape_right.len() {
+                self.tape_right.push(self.tape_right_default.clone());
+            }
+            &self.tape_right[index]
+        } else {
+            let index = (self.head.abs() - 1) as usize;
+            while index >= self.tape_left.len() {
+                self.tape_left.push(self.tape_left_default.clone());
+            }
+            &self.tape_left[index]
+        }
+    }
+
+    fn head_cell_mut(&mut self) -> &mut Expr<'nsa> {
+        if self.head >= 0 {
+            let index = self.head as usize;
+            while index > self.tape_right.len() {
+                self.tape_right.push(self.tape_right_default.clone());
+            }
+            &mut self.tape_right[index]
+        } else {
+            let index = (self.head.abs() - 1) as usize;
+            while index > self.tape_left.len() {
+                self.tape_left.push(self.tape_left_default.clone());
+            }
+            &mut self.tape_left[index]
+        }
+    }
+
     fn next(&mut self, scoped_cases: &[ScopedCase<'nsa>], sets: &Sets<'nsa>) -> Result<()> {
         for case in scoped_cases {
-            if let Some((write, step, next)) = case.type_check_next_case(sets, &self.state, &self.tape[self.head])? {
-                self.tape[self.head] = write.force_evals()?;
+            let head_cell = self.head_cell().clone(); // TODO: it would be better to avoid this clone
+            if let Some((write, step, next)) = case.type_check_next_case(sets, &self.state, &head_cell)? {
+                *self.head_cell_mut() = write.force_evals()?;
                 let step = step.expect_atom()?.expect_symbol()?;
                 match step.name {
                     "<-" => {
-                        if self.head == 0 {
-                            eprintln!("{loc}: ERROR: tape underflow", loc = step.loc);
-                            return Err(());
-                        }
                         self.head -= 1;
+                        self.head_cell(); // NOTE: touching the head so it creates the cell
                     }
                     "->" => {
                         self.head += 1;
-                        if self.head >= self.tape.len() {
-                            self.tape.push(self.tape_default.clone());
-                        }
+                        self.head_cell(); // NOTE: touching the head so it creates the cell
                     }
                     "." => {}
                     "!" => self.print(),
@@ -306,7 +336,10 @@ impl<'nsa> Machine<'nsa> {
     }
 
     fn print(&self) {
-        for expr in &self.tape {
+        for expr in self.tape_left.iter().rev() {
+            print!("{expr} ");
+        }
+        for expr in self.tape_right.iter() {
             print!("{expr} ");
         }
         println!()
@@ -317,10 +350,23 @@ impl<'nsa> Machine<'nsa> {
         let _ = write!(&mut buffer, "{state}: ", state = self.state);
         let mut head_begin = 0;
         let mut head_end = 0;
-        for (i, expr) in self.tape.iter().enumerate() {
-            if i > 0 {
-                let _ = write!(&mut buffer, " ");
+        let mut iter = self.tape_left
+            .iter()
+            .enumerate()
+            .map(|(i, x)| (-(i as i32 + 1), x))
+            .rev()
+            .chain(self.tape_right.iter().enumerate().map(|(i, x)| (i as i32, x)));
+        if let Some((i, expr)) = iter.next() {
+            if i == self.head {
+                head_begin = buffer.len();
             }
+            let _ = write!(&mut buffer, "{expr}");
+            if i == self.head {
+                head_end = buffer.len();
+            }
+        }
+        for (i, expr) in iter {
+            let _ = write!(&mut buffer, " ");
             if i == self.head {
                 head_begin = buffer.len();
             }
@@ -516,17 +562,26 @@ const COMMANDS: &[Command] = &[
             for run in &runs {
                 println!("{loc}: {kind}", loc = run.keyword.loc, kind = run.kind);
 
-                let tape_default;
+                let tape_right_default;
                 if let Some(symbol) = run.tape.last().cloned() {
-                    tape_default = symbol;
+                    tape_right_default = symbol;
                 } else {
-                    eprintln!("{loc}: ERROR: The tape may not be empty. It must contain at least one symbol so we know what to fill it with to the right indefinitely", loc = run.open_curly_of_tape.loc);
+                    eprintln!("{loc}: ERROR: The tape may not be empty. It must contain at least one symbol so we know what to fill it with", loc = run.open_curly_of_tape.loc);
+                    return Err(());
+                }
+                let tape_left_default;
+                if let Some(symbol) = run.tape.first().cloned() {
+                    tape_left_default = symbol;
+                } else {
+                    eprintln!("{loc}: ERROR: The tape may not be empty. It must contain at least one symbol so we know what to fill it with", loc = run.open_curly_of_tape.loc);
                     return Err(());
                 }
                 let mut machine = Machine {
                     state: run.state.clone(),
-                    tape: run.tape.clone(),
-                    tape_default,
+                    tape_right: run.tape.clone(),
+                    tape_left: vec![],
+                    tape_right_default,
+                    tape_left_default,
                     head: 0,
                     halt: false,
                 };
