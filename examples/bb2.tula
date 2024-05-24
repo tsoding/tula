@@ -1,0 +1,6 @@
+trace A { 0 }
+
+case A 0 1 -> B
+case A 1 1 <- B
+case B 0 1 <- A
+case B 1 1 -> Halt
