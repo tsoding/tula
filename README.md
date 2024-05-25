@@ -35,6 +35,8 @@ case <State> <Read> <Write> <Step> <Next>
 ...
 ```
 
+Each rule starts with the keyword `case` and 5 expressions:
+
 - `<State>` - The current state of the Machine,
 - `<Read>` - What the Machine reads on the Tape,
 - `<Write>` - What the Machine should write on the Tape,
