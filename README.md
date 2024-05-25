@@ -38,7 +38,7 @@ case <State> <Read> <Write> <Step> <Next>
 - `<State>` - The current state of the Machine,
 - `<Read>` - What the Machine reads on the Tape,
 - `<Write>` - What the Machine should write on the Tape,
-- `<Step>` - Where the Head of the Machine must step (`<-` left or `->` right),
+- `<Step>` - Where the Head of the Machine must step (`<-` left, `->` right or `.` stand),
 - `<Next>` - What is the next state of the Machine.
 
 ### Example
