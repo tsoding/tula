@@ -537,25 +537,6 @@ impl<'nsa> Expr<'nsa> {
         }
     }
 
-    pub fn uses_var(&self, var: &Symbol<'nsa>) -> Option<&Symbol<'nsa>> {
-        match self {
-            Self::Atom(Atom::Symbol(symbol)) => if symbol == var {
-                Some(symbol)
-            } else {
-                None
-            },
-            Self::Atom(Atom::Integer{..}) |
-            Self::Atom(Atom::Real{..}) |
-            Self::Atom(Atom::String{..})=> None,
-            Self::Eval{lhs, rhs, ..} => {
-                lhs.uses_var(var).or_else(|| rhs.uses_var(var))
-            }
-            Self::Tuple{elements, ..} => {
-                elements.iter().find_map(|element| element.uses_var(var))
-            }
-        }
-    }
-
     pub fn substitute_bindings(&self, bindings: &HashMap<Symbol<'nsa>, Expr<'nsa>>) -> Expr<'nsa> {
         match self {
             Self::Atom(Atom::Symbol(symbol))  => {

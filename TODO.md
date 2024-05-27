@@ -44,7 +44,8 @@
   - Right now we get a standard Rust panic
 - [ ] Incosistent double substitution
   - Some ideas to try:
-    - [ ] Get rid of scoped cases, generate as before, and embrace the repeating rules (you allow them outside of for-loops anyway)
+    - [x] Get rid of scoped cases and embrace the repeating rules (you allow them outside of for-loops anyway)
+    - [ ] Consistent order of expansion
     - [ ] Prevent double substitution somehow by marking already substituted expressions?
 - [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
   - Or even numbers
