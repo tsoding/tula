@@ -46,6 +46,7 @@
   - Some ideas to try:
     - [x] Get rid of scoped cases and embrace the repeating rules (you allow them outside of for-loops anyway)
     - [ ] Consistent order of expansion
+      - It's actually very hard to enforce because of how set expressions work
     - [ ] Prevent double substitution somehow by marking already substituted expressions?
 - [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
   - Or even numbers
