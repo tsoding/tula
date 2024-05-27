@@ -42,6 +42,10 @@
 - [x] Cartesian Products for Sets
 - [x] Custom Integer overflow/underflow Runtime Errors
   - Right now we get a standard Rust panic
+- [ ] Incosistent double substitution
+  - Some ideas to try:
+    - [ ] Get rid of scoped cases, generate as before, and embrace the repeating rules (you allow them outside of for-loops anyway)
+    - [ ] Prevent double substitution somehow by marking already substituted expressions?
 - [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
   - Or even numbers
 - [ ] More Magical Sets
