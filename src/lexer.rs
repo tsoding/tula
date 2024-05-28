@@ -38,6 +38,18 @@ impl<'nsa> Hash for Symbol<'nsa> {
     }
 }
 
+impl<'nsa> PartialOrd for Symbol<'nsa> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.name.partial_cmp(other.name)
+    }
+}
+
+impl<'nsa> Ord for Symbol<'nsa> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name.cmp(other.name)
+    }
+}
+
 impl<'nsa> fmt::Display for Loc<'nsa> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Loc{file_path, row, col} = self;

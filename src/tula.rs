@@ -252,6 +252,7 @@ impl<'nsa> Statement<'nsa> {
                 }
                 if !unused_vars.is_empty() {
                     eprintln!("{loc}: ERROR: not all variables in the scope are used in the input of the case", loc = case.keyword.loc);
+                    unused_vars.sort();
                     for var in unused_vars {
                         eprintln!("{loc}: NOTE: unused variable {var}", loc = var.loc);
                     }
