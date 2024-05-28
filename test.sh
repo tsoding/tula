@@ -8,7 +8,7 @@ for row in $(cat tests.list); do
     actual=$(mktemp)
     case $kind in
         "run")
-            cargo run -q run $file > "$actual"
+            cargo run -q run $file > "$actual" 2>&1 || true
             diff -u "$file.expect" "$actual"
             ;;
         "expand")

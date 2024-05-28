@@ -8,7 +8,7 @@ for row in $(cat tests.list); do
     case $kind in
         "run")
             expect="$file.expect"
-            cargo run -q run $file > $expect
+            cargo run -q run $file > $expect 2>&1 || true
             ;;
         "expand")
             expect="$file.expect.expand"
