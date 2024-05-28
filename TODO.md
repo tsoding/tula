@@ -49,6 +49,7 @@
       - it seems to be naturally happening because of how substitute_bindings work
 - [x] Obscure output of `expand` command even more, by replacing states with meaningless words
   - Or even numbers
+- [ ] Customize the initial location of the head
 - [ ] Consistent order of expansion
   - It's actually very hard to enforce because of how set expressions work
   - You can actually sort the expansions
