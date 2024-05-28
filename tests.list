@@ -17,5 +17,5 @@
 ./tests/real.tula,run
 ./tests/string.tula,run
 ./tests/left-tape.tula,run
-./tests/double-subst.tula,ignore
+./tests/double-subst.tula,expand
 ./tests/unused-vars.tula,run
