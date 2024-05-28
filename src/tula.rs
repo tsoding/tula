@@ -240,6 +240,47 @@ impl<'nsa> Statement<'nsa> {
         let mut bindings = HashMap::new();
         self.expand_bound(&mut bindings, sets, normalize)
     }
+
+    fn sanity_check_scoped(&self, scope: &mut Scope<'nsa>) -> Result<()> {
+        match self {
+            Statement::Case(case) => {
+                let mut unused_vars = vec![];
+                for (var, _) in scope.iter() {
+                    if case.state.uses_var(var).or_else(|| case.read.uses_var(var)).is_none() {
+                        unused_vars.push(var);
+                    }
+                }
+                if !unused_vars.is_empty() {
+                    eprintln!("{loc}: ERROR: not all variables in the scope are used in the input of the case", loc = case.keyword.loc);
+                    for var in unused_vars {
+                        eprintln!("{loc}: NOTE: unused variable {var}", loc = var.loc);
+                    }
+                    return Err(())
+                }
+            }
+            Statement::Block{statements} => {
+                for statement in statements {
+                    statement.sanity_check_scoped(scope)?
+                }
+            }
+            Statement::For{var, set, body} => {
+                if let Some((shadowed_var, _)) = scope.get_key_value(var) {
+                    println!("{loc}: ERROR: {var} shadows another name in the higher scope", loc = var.loc);
+                    println!("{loc}: NOTE: the shadowed name is located here", loc = shadowed_var.loc);
+                    return Err(())
+                }
+                scope.insert(*var, set.clone());
+                body.sanity_check_scoped(scope)?;
+                scope.remove(var);
+            }
+        }
+        Ok(())
+    }
+
+    fn sanity_check(&self) -> Result<()> {
+        let mut scope = Scope::new();
+        self.sanity_check_scoped(&mut scope)
+    }
 }
 
 #[derive(Debug)]
@@ -530,6 +571,10 @@ const COMMANDS: &[Command] = &[
             })?;
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&tula_source, &tula_path))?;
 
+            for statement in &statements {
+                statement.sanity_check()?
+            }
+
             for run in &runs {
                 println!("{loc}: {kind}", loc = run.keyword.loc, kind = run.kind);
 
@@ -603,6 +648,9 @@ const COMMANDS: &[Command] = &[
 
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&source, &source_path))?;
 
+            for statement in &statements {
+                statement.sanity_check()?;
+            }
             for statement in statements.iter() {
                 statement.expand(&sets, no_expr)?;
             }
