@@ -160,7 +160,7 @@ impl<'nsa> Statement<'nsa> {
                             return Ok(None)
                         }
                     } else {
-                        unreachable!("Sanity check was not performed");
+                        unreachable!("Unused variable is found at runtime. Sanity check was not performed before execution.");
                     }
                 }
 
@@ -179,12 +179,8 @@ impl<'nsa> Statement<'nsa> {
                 Ok(None)
             }
             Statement::For{var, set, body} => {
-                if let Some((shadowed_var, _)) = scope.get_key_value(var) {
-                    println!("{loc}: ERROR: {var} shadows another name in the higher scope", loc = var.loc);
-                    println!("{loc}: NOTE: the shadowed name is located here", loc = shadowed_var.loc);
-                    return Err(())
-                }
-                scope.insert(*var, set.clone());
+                let shadowed = scope.insert(*var, set.clone()).is_some();
+                assert!(!shadowed, "A variable is shadowed at runtime. Sanity check was not performed before execution.");
                 let result = body.match_next_case_scoped(scope, sets, state, read)?;
                 scope.remove(var);
                 Ok(result)
@@ -216,13 +212,9 @@ impl<'nsa> Statement<'nsa> {
                 }
             }
             Statement::For{var, set, body} => {
-                if let Some((shadowed_var, _)) = bindings.get_key_value(var) {
-                    println!("{loc}: ERROR: {var} shadows another name in the higher scope", loc = var.loc);
-                    println!("{loc}: NOTE: the shadowed name is located here", loc = shadowed_var.loc);
-                    return Err(())
-                }
                 for element in set.expand(sets)?.iter() {
-                    bindings.insert(*var, element.clone());
+                    let shadowed = bindings.insert(*var, element.clone()).is_some();
+                    assert!(!shadowed, "A variable is shadowed at expansion. Sanity check was not performed before execution.");
                     body.expand_bound(bindings, sets, normalize)?;
                     bindings.remove(var);
                 }
