@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use super::{Result, Scope};
 use std::hash::{Hash, Hasher};
 use std::num::IntErrorKind;
+use std::fmt::Write;
 
 #[derive(Debug, Clone)]
 pub enum Atom<'nsa> {
@@ -257,32 +258,6 @@ impl<'nsa> fmt::Display for Expr<'nsa> {
                 }
                 write!(f, ")")
             }
-        }
-    }
-}
-
-pub struct NormExpr<'nsa, 'cia>(pub &'cia Expr<'nsa>);
-
-impl<'nsa, 'cia> fmt::Display for NormExpr<'nsa, 'cia> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let NormExpr(expr) = self;
-        match expr {
-            // TODO: normalize literals wrapped in single quotes
-            Expr::Atom(atom) => write!(f, "{atom}"),
-            // () => __
-            // (1 2 3 4) => _1_2_3_4_
-            // (1 (2 3) 4) _1__2_3__4_
-            Expr::Tuple{elements, ..} => {
-                write!(f, "_")?;
-                for (i, element) in elements.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, "_")?;
-                    }
-                    write!(f, "{}", NormExpr(element))?;
-                }
-                write!(f, "_")
-            }
-            Expr::Eval{..} => todo!("I don't know how to normalize these things yet"),
         }
     }
 }
@@ -639,5 +614,33 @@ impl<'nsa> Expr<'nsa> {
                 }
             }
         }
+    }
+
+    pub fn normalize(&self) -> String {
+        fn normalize_impl(expr: &Expr, f: &mut String) {
+            match expr {
+                // TODO: normalize literals wrapped in single quotes
+                Expr::Atom(atom) => {
+                    write!(f, "{atom}").unwrap();
+                }
+                // () => __
+                // (1 2 3 4) => _1_2_3_4_
+                // (1 (2 3) 4) _1__2_3__4_
+                Expr::Tuple{elements, ..} => {
+                    write!(f, "_").unwrap();
+                    for (i, element) in elements.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, "_").unwrap();
+                        }
+                        normalize_impl(element, f);
+                    }
+                    write!(f, "_").unwrap();
+                }
+                Expr::Eval{..} => todo!("I don't know how to normalize these things yet"),
+            }
+        }
+        let mut f = String::new();
+        normalize_impl(self, &mut f);
+        f
     }
 }

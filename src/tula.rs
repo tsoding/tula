@@ -201,11 +201,11 @@ impl<'nsa> Statement<'nsa> {
                 let step = step.clone().force_evals()?;
                 let next = next.clone().force_evals()?;
                 if normalize {
-                    let state = NormExpr(&state);
-                    let read = NormExpr(&read);
-                    let write = NormExpr(&write);
-                    let step = NormExpr(&step);
-                    let next = NormExpr(&next);
+                    let state = state.normalize();
+                    let read = read.normalize();
+                    let write = write.normalize();
+                    let step = step.normalize();
+                    let next = next.normalize();
                     println!("{keyword} {state} {read} {write} {step} {next}");
                 } else {
                     println!("{keyword} {state} {read} {write} {step} {next}");
@@ -465,7 +465,7 @@ impl<'nsa> Run<'nsa> {
                 print!(" ");
             }
             if normalize {
-                print!("{expr}", expr = NormExpr(expr));
+                print!("{expr}", expr = expr.normalize());
             } else {
                 print!("{expr}");
             }

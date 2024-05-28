@@ -42,16 +42,16 @@
 - [x] Cartesian Products for Sets
 - [x] Custom Integer overflow/underflow Runtime Errors
   - Right now we get a standard Rust panic
-- [ ] Incosistent double substitution
+- [x] Incosistent double substitution
   - Some ideas to try:
     - [x] Get rid of scoped cases and embrace the repeating rules (you allow them outside of for-loops anyway)
     - [x] Prevent double substitution somehow by marking already substituted expressions?
       - it seems to be naturally happening because of how substitute_bindings work
-    - [ ] Consistent order of expansion
-      - It's actually very hard to enforce because of how set expressions work
-      - You can actually sort the expansions
 - [ ] Obscure output of `expand` command even more, by replacing states with meaningless words
   - Or even numbers
+- [ ] Consistent order of expansion
+  - It's actually very hard to enforce because of how set expressions work
+  - You can actually sort the expansions
 - [ ] More Magical Sets
   - [x] Real
   - [x] String
