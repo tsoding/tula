@@ -14,7 +14,7 @@ for row in $(cat tests.list); do
             ;;
         "expand")
             expect="$file.expect.expand"
-            ./target/debug/tula expand $file > $expect
+            ./target/debug/tula expand $file > $expect 2>&1 || true
             ;;
         "ignore")
             echo "$file is explicitly ignored"

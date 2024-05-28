@@ -14,7 +14,7 @@ for row in $(cat tests.list); do
             diff -u "$file.expect" "$actual"
             ;;
         "expand")
-            ./target/debug/tula expand $file > "$actual"
+            ./target/debug/tula expand $file > "$actual" 2>&1 || true
             diff -u "$file.expect.expand" "$actual"
             ;;
         "ignore")
