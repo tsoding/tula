@@ -18,3 +18,4 @@
 ./tests/string.tula,run
 ./tests/left-tape.tula,run
 ./tests/double-subst.tula,ignore
+./tests/unused-vars.tula,run

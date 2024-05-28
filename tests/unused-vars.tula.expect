@@ -1,0 +1,3 @@
+./tests/unused-vars.tula:4:5: ERROR: not all variables in the scope are used in the input of the case
+./tests/unused-vars.tula:3:5: NOTE: unused variable a
+./tests/unused-vars.tula:3:7: NOTE: unused variable b
