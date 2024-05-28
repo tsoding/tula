@@ -193,19 +193,18 @@ impl<'nsa> Statement<'nsa> {
         self.match_next_case_scoped(&mut scope, sets, state, read)
     }
 
-    fn expand_bound(&self, bindings: &mut HashMap<Symbol<'nsa>, Expr<'nsa>>, sets: &Sets<'nsa>, normalize: bool) -> Result<()> {
+    fn expand_bound(&self, bindings: &mut HashMap<Symbol<'nsa>, Expr<'nsa>>, cache: &mut HashMap<Expr<'nsa>, usize>, sets: &Sets<'nsa>, enumerate: bool) -> Result<()> {
         match self {
             Statement::Case(case) => {
                 let Case{keyword, state, read, write, step, next} = case.substitute_bindings(bindings).clone();
                 let write = write.clone().force_evals()?;
                 let step = step.clone().force_evals()?;
                 let next = next.clone().force_evals()?;
-                if normalize {
-                    let state = state.normalize();
-                    let read = read.normalize();
-                    let write = write.normalize();
-                    let step = step.normalize();
-                    let next = next.normalize();
+                if enumerate {
+                    let state = state.enumerate(cache);
+                    let read = read.enumerate(cache);
+                    let write = write.enumerate(cache);
+                    let next = next.enumerate(cache);
                     println!("{keyword} {state} {read} {write} {step} {next}");
                 } else {
                     println!("{keyword} {state} {read} {write} {step} {next}");
@@ -215,22 +214,22 @@ impl<'nsa> Statement<'nsa> {
                 for element in set.expand(sets)?.iter() {
                     let shadowed = bindings.insert(*var, element.clone()).is_some();
                     assert!(!shadowed, "A variable is shadowed at expansion. Sanity check was not performed before execution.");
-                    body.expand_bound(bindings, sets, normalize)?;
+                    body.expand_bound(bindings, cache, sets, enumerate)?;
                     bindings.remove(var);
                 }
             }
             Statement::Block{statements} => {
                 for statement in statements {
-                    statement.expand_bound(bindings, sets, normalize)?;
+                    statement.expand_bound(bindings, cache, sets, enumerate)?;
                 }
             }
         }
         Ok(())
     }
 
-    fn expand(&self, sets: &Sets<'nsa>, normalize: bool) -> Result<()> {
+    fn expand(&self, sets: &Sets<'nsa>, cache: &mut HashMap<Expr<'nsa>, usize>, enumerate: bool) -> Result<()> {
         let mut bindings = HashMap::new();
-        self.expand_bound(&mut bindings, sets, normalize)
+        self.expand_bound(&mut bindings, cache, sets, enumerate)
     }
 
     fn sanity_check_scoped(&self, scope: &mut Scope<'nsa>) -> Result<()> {
@@ -456,16 +455,20 @@ impl<'nsa> Run<'nsa> {
         Ok((open_curly, seq))
     }
 
-    fn expand(&self, normalize: bool) {
+    fn expand(&self, cache: &mut HashMap<Expr<'nsa>, usize>, enumerate: bool) {
         print!("{kind}", kind = self.kind);
-        print!(" {entry}", entry = self.state);
+        if enumerate {
+            print!(" {entry}", entry = self.state.enumerate(cache));
+        } else {
+            print!(" {entry}", entry = self.state);
+        }
         print!(" {{");
         for (i, expr) in self.tape.iter().enumerate() {
             if i > 0 {
                 print!(" ");
             }
-            if normalize {
-                print!("{expr}", expr = expr.normalize());
+            if enumerate {
+                print!("{expr}", expr = expr.enumerate(cache));
             } else {
                 print!("{expr}");
             }
@@ -610,14 +613,14 @@ const COMMANDS: &[Command] = &[
     Command {
         name: "expand",
         description: "Expands all the Universal Quantifiers hardcoding all of the cases",
-        signature: "[--no-expr] <input.tula>",
+        signature: "[--enum] <input.tula>",
         run: |command, program_name: &str, args: env::Args| {
             let mut source_path = None;
-            let mut no_expr = false;
+            let mut enumerate = false;
 
             for arg in args {
                 match arg.as_str() {
-                    "--no-expr" => no_expr = true,
+                    "--enum" => enumerate = true,
                     _ => {
                         if source_path.is_some() {
                             command_usage(program_name, command);
@@ -640,15 +643,23 @@ const COMMANDS: &[Command] = &[
             })?;
 
             let (sets, statements, runs) = parse_program(&mut Lexer::new(&source, &source_path))?;
+            let mut cache = HashMap::new();
 
             for statement in &statements {
                 statement.sanity_check()?;
             }
             for statement in statements.iter() {
-                statement.expand(&sets, no_expr)?;
+                statement.expand(&sets, &mut cache, enumerate)?;
             }
             for run in &runs {
-                run.expand(no_expr);
+                run.expand(&mut cache, enumerate);
+            }
+            if enumerate {
+                let mut table: Vec<_> = cache.iter().collect();
+                table.sort_by(|(_, a), (_, b)| a.cmp(b));
+                for (expr, id) in &table {
+                    println!("// {id} = {expr}");
+                }
             }
             Ok(())
         },
