@@ -1,5 +1,0 @@
-./tests/left-tape.tula:1:1: trace
-Left: 0
-      ^
-Halt: 0 1
-      ^

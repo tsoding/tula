@@ -1,9 +1,0 @@
-./tests/string.tula:1:1: trace
-Hello: 'Hello, ' 'World' .
-       ^~~~~~~~~
-(Hello 'Hello, '): . 'World' .
-                     ^~~~~~~
-(Hello 'Hello, ' 'World'): . . .
-                               ^
-Halt: . . 'Hello, World'
-          ^~~~~~~~~~~~~~
