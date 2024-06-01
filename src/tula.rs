@@ -9,6 +9,7 @@ use std::fmt::{self, Write};
 use std::env;
 use std::process::ExitCode;
 use std::collections::{HashMap};
+use std::ops::{Index, IndexMut};
 use unicode_width::UnicodeWidthStr;
 
 use lexer::*;
@@ -276,63 +277,84 @@ impl<'nsa> Statement<'nsa> {
 }
 
 #[derive(Debug)]
+struct Tape<'nsa> {
+    left: Vec<Expr<'nsa>>,
+    left_default: Expr<'nsa>,
+    right: Vec<Expr<'nsa>>,
+    right_default: Expr<'nsa>,
+}
+
+impl<'nsa> Tape<'nsa> {
+    fn touch(&mut self, index: i32) {
+        if index >= 0 {
+            let index = index as usize;
+            while index >= self.right.len() {
+                self.right.push(self.right_default.clone());
+            }
+        } else {
+            let index = (index.abs() - 1) as usize;
+            while index >= self.left.len() {
+                self.left.push(self.left_default.clone());
+            }
+        }
+    }
+}
+
+impl<'nsa> Index<i32> for Tape<'nsa> {
+    type Output = Expr<'nsa>;
+    fn index(&self, index: i32) -> &Expr<'nsa> {
+        if index >= 0 {
+            let index = index as usize;
+            if index >= self.right.len() {
+                &self.right_default
+            } else {
+                &self.right[index]
+            }
+        } else {
+            let index = (index.abs() - 1) as usize;
+            if index >= self.left.len() {
+                &self.left_default
+            } else {
+                &self.left[index]
+            }
+        }
+    }
+}
+
+impl<'nsa> IndexMut<i32> for Tape<'nsa> {
+    fn index_mut(&mut self, index: i32) -> &mut Expr<'nsa> {
+        if index >= 0 {
+            let index = index as usize;
+            &mut self.right[index]
+        } else {
+            let index = (index.abs() - 1) as usize;
+            &mut self.left[index]
+        }
+    }
+}
+
+#[derive(Debug)]
 struct Machine<'nsa> {
     state: Expr<'nsa>,
-    tape_right: Vec<Expr<'nsa>>,
-    tape_left: Vec<Expr<'nsa>>,
-    tape_right_default: Expr<'nsa>,
-    tape_left_default: Expr<'nsa>,
+    tape: Tape<'nsa>,
     head: i32,
     halt: bool,
 }
 
 impl<'nsa> Machine<'nsa> {
-    fn head_cell(&mut self) -> &Expr<'nsa> {
-        if self.head >= 0 {
-            let index = self.head as usize;
-            while index >= self.tape_right.len() {
-                self.tape_right.push(self.tape_right_default.clone());
-            }
-            &self.tape_right[index]
-        } else {
-            let index = (self.head.abs() - 1) as usize;
-            while index >= self.tape_left.len() {
-                self.tape_left.push(self.tape_left_default.clone());
-            }
-            &self.tape_left[index]
-        }
-    }
-
-    fn head_cell_mut(&mut self) -> &mut Expr<'nsa> {
-        if self.head >= 0 {
-            let index = self.head as usize;
-            while index > self.tape_right.len() {
-                self.tape_right.push(self.tape_right_default.clone());
-            }
-            &mut self.tape_right[index]
-        } else {
-            let index = (self.head.abs() - 1) as usize;
-            while index > self.tape_left.len() {
-                self.tape_left.push(self.tape_left_default.clone());
-            }
-            &mut self.tape_left[index]
-        }
-    }
-
     fn next(&mut self, statements: &[Statement<'nsa>], sets: &Sets<'nsa>) -> Result<()> {
         for statement in statements {
-            let head_cell = self.head_cell().clone(); // TODO: it would be better to avoid this clone
-            if let Some((write, step, next)) = statement.match_next_case(sets, &self.state, &head_cell)? {
-                *self.head_cell_mut() = write.force_evals()?;
+            if let Some((write, step, next)) = statement.match_next_case(sets, &self.state, &self.tape[self.head])? {
+                self.tape[self.head] = write.force_evals()?;
                 let step = step.expect_atom()?.expect_symbol()?;
                 match step.name {
                     "<-" => {
                         self.head -= 1;
-                        self.head_cell(); // NOTE: touching the head so it creates the cell
+                        self.tape.touch(self.head);
                     }
                     "->" => {
                         self.head += 1;
-                        self.head_cell(); // NOTE: touching the head so it creates the cell
+                        self.tape.touch(self.head);
                     }
                     "." => {}
                     "!" => self.print(),
@@ -350,10 +372,10 @@ impl<'nsa> Machine<'nsa> {
     }
 
     fn print(&self) {
-        for expr in self.tape_left.iter().rev() {
+        for expr in self.tape.left.iter().rev() {
             print!("{expr} ");
         }
-        for expr in self.tape_right.iter() {
+        for expr in self.tape.right.iter() {
             print!("{expr} ");
         }
         println!()
@@ -364,12 +386,12 @@ impl<'nsa> Machine<'nsa> {
         let _ = write!(&mut buffer, "{state}: ", state = self.state);
         let mut head_begin = 0;
         let mut head_end = 0;
-        let mut iter = self.tape_left
+        let mut iter = self.tape.left
             .iter()
             .enumerate()
             .map(|(i, x)| (-(i as i32 + 1), x))
             .rev()
-            .chain(self.tape_right.iter().enumerate().map(|(i, x)| (i as i32, x)));
+            .chain(self.tape.right.iter().enumerate().map(|(i, x)| (i as i32, x)));
         if let Some((i, expr)) = iter.next() {
             if i == self.head {
                 head_begin = buffer.len();
@@ -588,12 +610,15 @@ const COMMANDS: &[Command] = &[
                     eprintln!("{loc}: ERROR: The tape may not be empty. It must contain at least one symbol so we know what to fill it with", loc = run.open_curly_of_tape.loc);
                     return Err(());
                 }
+                let tape = Tape {
+                    right: run.tape.clone(),
+                    right_default: tape_right_default,
+                    left: vec![],
+                    left_default: tape_left_default,
+                };
                 let mut machine = Machine {
                     state: run.state.clone(),
-                    tape_right: run.tape.clone(),
-                    tape_left: vec![],
-                    tape_right_default,
-                    tape_left_default,
+                    tape,
                     head: 0,
                     halt: false,
                 };

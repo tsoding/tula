@@ -136,11 +136,12 @@ if __name__ == '__main__':
                 print(f"NOTE: You may want to do `{program_name} record {test_list_path}` to update {test_list_path}.bi")
                 exit(1)
             process = subprocess.run(['sh', '-c', shell], capture_output = True);
+            failed = False
             if process.returncode != snapshot['returncode']:
                 print(f"UNEXPECTED: return code")
                 print(f"    EXPECTED: {snapshot['returncode']}")
                 print(f"    ACTUAL:   {process.returncode}")
-                exit(1)
+                failed = True
             if process.stdout != snapshot['stdout']:
                 # TODO: support binary outputs
                 a = snapshot['stdout'].decode('utf-8').splitlines(keepends=True)
@@ -148,13 +149,15 @@ if __name__ == '__main__':
                 print(f"UNEXPECTED: stdout")
                 for line in unified_diff(a, b, fromfile="expected", tofile="actual"):
                     print(line, end='')
-                exit(1)
+                failed = True
             if process.stderr != snapshot['stderr']:
                 a = snapshot['stderr'].decode('utf-8').splitlines(keepends=True)
                 b = process.stderr.decode('utf-8').splitlines(keepends=True)
                 print(f"UNEXPECTED: stderr")
                 for line in unified_diff(a, b, fromfile="expected", tofile="actual"):
                     print(line, end='')
+                failed = True
+            if failed:
                 exit(1)
         print('OK')
     else:
