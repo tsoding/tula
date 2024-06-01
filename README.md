@@ -4,7 +4,7 @@ Tula (**Tu**ring **La**nguage) is an [Esoteric Programming Language](https://en.
 
 *The Language is currently in Development. So the Source Code is not available yet. The Development is happening at https://twitch.tv/tsoding The Source Code will be available as soon as I feel like the project is ready. Also I'll be making a detailed Video about this Language on my YouTube channel https://youtube.com/@Tsoding*
 
-## Quick Start
+## Install
 
 1. Install [Rust Compiler](https://www.rust-lang.org/learn/get-started)
 2. Clone this repo:
@@ -22,6 +22,20 @@ $ tula run ./examples/05-rule110.tula
 5. Expand the example into a form without Universal Quantifiers and Sets:
 ```console
 $ tula expand ./examples/05-rule110.tula
+```
+
+## Test
+
+The project is using [rere.py](https://github.com/tsoding/rere.py) for testing the behavior of the compiler:
+
+1. To run the tests:
+```console
+$ ./rere.py replay ./tests.list
+```
+
+2. To record the new behavior:
+```console
+$ ./rere.py record ./tests.list
 ```
 
 ## Base Syntax
