@@ -1,21 +1,21 @@
-./examples/01-inc.tula,run
-./examples/02-parens.tula,run
-./examples/02-add.tula,run
-./examples/03-pairs.tula,run
-./examples/05-rule110.tula,run
-./examples/06-shift.tula,run
-./examples/07-fib.tula,run
-./examples/08-reverse.tula,run
-./examples/09-multi-parens.tula,run
-./examples/10-fizz-buzz.tula,run
-./examples/11-utm.tula,run
-./examples/12-bubble-sort.tula,run
-./examples/bb2.tula,run
-./euler/problem-01.tula,run
-./euler/problem-02.tula,run
-./euler/problem-03.tula,run
-./tests/real.tula,run
-./tests/string.tula,run
-./tests/left-tape.tula,run
-./tests/double-subst.tula,expand
-./tests/unused-vars.tula,run
+cargo run -q run ./examples/01-inc.tula
+cargo run -q run ./examples/02-parens.tula
+cargo run -q run ./examples/02-add.tula
+cargo run -q run ./examples/03-pairs.tula
+cargo run -q run ./examples/05-rule110.tula
+cargo run -q run ./examples/06-shift.tula
+cargo run -q run ./examples/07-fib.tula
+cargo run -q run ./examples/08-reverse.tula
+cargo run -q run ./examples/09-multi-parens.tula
+cargo run -q run ./examples/10-fizz-buzz.tula
+cargo run -q run ./examples/11-utm.tula
+cargo run -q run ./examples/12-bubble-sort.tula
+cargo run -q run ./examples/bb2.tula
+cargo run -q run ./euler/problem-01.tula
+cargo run -q run ./euler/problem-02.tula
+cargo run -q run ./euler/problem-03.tula
+cargo run -q run ./tests/real.tula
+cargo run -q run ./tests/string.tula
+cargo run -q run ./tests/left-tape.tula
+cargo run -q expand ./tests/double-subst.tula
+cargo run -q run ./tests/unused-vars.tula
