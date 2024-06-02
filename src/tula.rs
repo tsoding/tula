@@ -276,7 +276,7 @@ impl<'nsa> Statement<'nsa> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Tape<'nsa> {
     left: Vec<Expr<'nsa>>,
     left_default: Expr<'nsa>,
@@ -285,6 +285,15 @@ struct Tape<'nsa> {
 }
 
 impl<'nsa> Tape<'nsa> {
+    fn new(left: Vec<Expr<'nsa>>, right: Vec<Expr<'nsa>>) -> Option<Self> {
+        let left_default = left.first().or(right.first())?.clone();
+        let right_default = right.last().or(left.last())?.clone();
+        Some(Self {
+            left, left_default,
+            right, right_default,
+        })
+    }
+
     fn touch(&mut self, index: i32) {
         if index >= 0 {
             let index = index as usize;
@@ -451,20 +460,36 @@ struct Run<'nsa> {
     kind: RunKind,
     keyword: Symbol<'nsa>,
     state: Expr<'nsa>,
-    open_curly_of_tape: Symbol<'nsa>,
-    tape: Vec<Expr<'nsa>>,
+    tape: Tape<'nsa>,
 }
 
 impl<'nsa> Run<'nsa> {
     fn parse(lexer: &mut Lexer<'nsa>) -> Result<Self> {
         let keyword = lexer.expect_symbols(&["run", "trace"])?;
-        let state = Expr::parse(lexer)?.force_evals()?;
-        let (open_curly_of_tape, tape) = Self::parse_tape(lexer)?;
         let kind = RunKind::from_name(keyword.name).unwrap();
-        Ok(Run {keyword, state, open_curly_of_tape, tape, kind})
+        let state = Expr::parse(lexer)?.force_evals()?;
+        let (open_curly_of_tape_seq, mut tape_seq) = Self::parse_tape_seq(lexer)?;
+        if let Some(symbol) = lexer.peek_symbol() {
+            if symbol.name == "{" {
+                let (_open_curly_of_tape_seq_right, tape_seq_right) = Self::parse_tape_seq(lexer)?;
+                tape_seq.reverse();
+                if let Some(tape) = Tape::new(tape_seq, tape_seq_right) {
+                    return Ok(Run {keyword, state, tape, kind})
+                } else {
+                    eprintln!("{loc}: ERROR: The tape may not be empty. It must contain at least one symbol so we know what to fill it with", loc = open_curly_of_tape_seq.loc);
+                    return Err(());
+                }
+            }
+        }
+        if let Some(tape) = Tape::new(vec![], tape_seq) {
+            Ok(Run {keyword, state, tape, kind})
+        } else {
+            eprintln!("{loc}: ERROR: The tape may not be empty. It must contain at least one symbol so we know what to fill it with", loc = open_curly_of_tape_seq.loc);
+            Err(())
+        }
     }
 
-    fn parse_tape(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Expr<'nsa>>)> {
+    fn parse_tape_seq(lexer: &mut Lexer<'nsa>) -> Result<(Symbol<'nsa>, Vec<Expr<'nsa>>)> {
         let open_curly = lexer.expect_symbols(&["{"])?;
         let mut seq = vec![];
         while let Some(symbol) = lexer.peek_symbol() {
@@ -485,7 +510,7 @@ impl<'nsa> Run<'nsa> {
             print!(" {entry}", entry = self.state);
         }
         print!(" {{");
-        for (i, expr) in self.tape.iter().enumerate() {
+        for (i, expr) in self.tape.left.iter().chain(self.tape.right.iter()).enumerate() {
             if i > 0 {
                 print!(" ");
             }
@@ -596,29 +621,9 @@ const COMMANDS: &[Command] = &[
             for run in &runs {
                 println!("{loc}: {kind}", loc = run.keyword.loc, kind = run.kind);
 
-                let tape_right_default;
-                if let Some(symbol) = run.tape.last().cloned() {
-                    tape_right_default = symbol;
-                } else {
-                    eprintln!("{loc}: ERROR: The tape may not be empty. It must contain at least one symbol so we know what to fill it with", loc = run.open_curly_of_tape.loc);
-                    return Err(());
-                }
-                let tape_left_default;
-                if let Some(symbol) = run.tape.first().cloned() {
-                    tape_left_default = symbol;
-                } else {
-                    eprintln!("{loc}: ERROR: The tape may not be empty. It must contain at least one symbol so we know what to fill it with", loc = run.open_curly_of_tape.loc);
-                    return Err(());
-                }
-                let tape = Tape {
-                    right: run.tape.clone(),
-                    right_default: tape_right_default,
-                    left: vec![],
-                    left_default: tape_left_default,
-                };
                 let mut machine = Machine {
                     state: run.state.clone(),
-                    tape,
+                    tape: run.tape.clone(),
                     head: 0,
                     halt: false,
                 };

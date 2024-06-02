@@ -89,6 +89,33 @@ Halt: 0 0 1 1
             ^
 ```
 
+You can actually have several `trace` statements within a single file
+that start at different states with different tapes. All of them are
+going to be executed sequentually.
+
+If you need to start the head from a different position provide two
+tape sequences. First one is going to be treated as everything to the
+left of the head, the second one is everything to the right:
+```
+trace Loop { a b c } { 1 1 1 0 }
+//                     ^
+//                     The head starts here
+case Loop 1 0 -> Loop
+```
+
+The trace of the above program
+
+```
+Loop: a b c 1 1 1 0
+            ^
+Loop: a b c 0 1 1 0
+              ^
+Loop: a b c 0 0 1 0
+                ^
+Loop: a b c 0 0 0 0
+                  ^
+```
+
 ## Compound Expressions
 
 Instead of using just Symbols you can actually use Compound Expressions. The syntax of a Compond Expression is similar to [S-expressions](https://en.wikipedia.org/wiki/S-expression) but without the pair syntax. Just Symbols and Lists:

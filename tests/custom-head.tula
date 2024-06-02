@@ -1,0 +1,4 @@
+trace Entry { 0 1 2 } { 3 4 . }
+
+for x in Integer
+case Entry x [x + 1] -> Entry

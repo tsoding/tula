@@ -19,3 +19,4 @@ cargo run -q run ./tests/string.tula
 cargo run -q run ./tests/left-tape.tula
 cargo run -q expand ./tests/double-subst.tula
 cargo run -q run ./tests/unused-vars.tula
+cargo run -q run ./tests/custom-head.tula

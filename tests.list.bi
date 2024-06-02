@@ -1,4 +1,4 @@
-:i count 21
+:i count 22
 :b shell 39
 cargo run -q run ./examples/01-inc.tula
 :i returncode 0
@@ -1232,4 +1232,18 @@ cargo run -q run ./tests/unused-vars.tula
 ./tests/unused-vars.tula:4:5: ERROR: not all variables in the scope are used in the input of the case
 ./tests/unused-vars.tula:3:5: NOTE: unused variable a
 ./tests/unused-vars.tula:3:7: NOTE: unused variable b
+
+:b shell 41
+cargo run -q run ./tests/custom-head.tula
+:i returncode 0
+:b stdout 144
+./tests/custom-head.tula:1:1: trace
+Entry: 0 1 2 3 4 .
+             ^
+Entry: 0 1 2 4 4 .
+               ^
+Entry: 0 1 2 4 5 .
+                 ^
+
+:b stderr 0
 
