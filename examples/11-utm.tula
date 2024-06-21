@@ -4,7 +4,7 @@
 // basically a Universal Turing Machine (UTM):
 // https://en.wikipedia.org/wiki/Universal_Turing_machine
 //
-// Granted it does not supported all the fancy extensions of Tula, but
+// Granted it does not support all the fancy extensions of Tula, but
 // here we are interpreting a program from ./01-inc.tula
 
 trace (UTM Inc) {
