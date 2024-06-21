@@ -835,8 +835,8 @@ cargo run -q run ./examples/10-fizz-buzz.tula
 :b shell 39
 cargo run -q run ./examples/11-utm.tula
 :i returncode 0
-:b stdout 9000
-./examples/11-utm.tula:1:1: trace
+:b stdout 9001
+./examples/11-utm.tula:10:1: trace
 (UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
            ^
 (UTM Inc): % (Inc 0 1 . Halt) (Inc 1 0 -> Inc) (Dec 1 0 . Halt) (Dec 0 1 -> Dec) & (head 1) 1 0 1 0
