@@ -208,15 +208,15 @@ case (S n) m 0 -> S
 The above expands to this:
 
 ```js
-case (S a) a a -> S
-case (S a) b a -> S
-case (S a) c a -> S
-case (S b) a b -> S
-case (S b) b b -> S
-case (S b) c b -> S
-case (S c) a c -> S
-case (S c) b c -> S
-case (S c) c c -> S
+case (S a) a 0 -> S
+case (S a) b 0 -> S
+case (S a) c 0 -> S
+case (S b) a 0 -> S
+case (S b) b 0 -> S
+case (S b) c 0 -> S
+case (S c) a 0 -> S
+case (S c) b 0 -> S
+case (S c) c 0 -> S
 ```
 
 Nested Quantifiers that iterate over the same set can be collapsed like so:
