@@ -5,19 +5,15 @@ Tula (**Tu**ring **La**nguage) is an [Esoteric Programming Language](https://en.
 ## Install
 
 1. Install [Rust Compiler](https://www.rust-lang.org/learn/get-started)
-2. Clone this repo:
+2. Install the compiler to `~/.cargo/bin/` (it should be already in your `$PATH` after rustup installation)
 ```console
-$ git clone https://github.com/tsoding/tula && cd tula
+$ cargo install --git https://github.com/tsoding/tula.git
 ```
-3. Install the compiler to `~/.cargo/bin/` (it should be already in your `$PATH` after rustup installation)
-```console
-$ cargo install --path .
-```
-4. Run some examples:
+3. Run some examples:
 ```console
 $ tula run ./examples/05-rule110.tula
 ```
-5. Expand the example into a form without Universal Quantifiers and Sets:
+4. Expand the example into a form without Universal Quantifiers and Sets:
 ```console
 $ tula expand ./examples/05-rule110.tula
 ```
